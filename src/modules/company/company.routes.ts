@@ -1,18 +1,15 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import { notImplemented, sendSuccess } from "../../utils/http.js";
+import { getProfile, updateProfile } from "../../controllers/company.controller.js";
 
 export const companyRouter = Router();
 
 companyRouter.use(requireAuth, requireRole(["company"]));
 
-companyRouter.get("/profile", (_request, response) =>
-  sendSuccess(response, "Company profile route scaffolded", notImplemented("GET /company/profile"), 501),
-);
+companyRouter.get("/profile", getProfile);
 
-companyRouter.put("/profile", (_request, response) =>
-  sendSuccess(response, "Company profile update scaffolded", notImplemented("PUT /company/profile"), 501),
-);
+companyRouter.put("/profile", updateProfile);
 
 companyRouter.get("/events", (_request, response) =>
   sendSuccess(response, "Company events route scaffolded", notImplemented("GET /company/events"), 501),
