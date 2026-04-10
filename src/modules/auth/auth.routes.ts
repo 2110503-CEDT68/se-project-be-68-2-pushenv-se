@@ -5,6 +5,6 @@ import { requireAuth } from "../../middlewares/auth.js";
 
 export const authRouter = Router();
 
-authRouter.post("/register", requireAuth, register);
+authRouter.post("/register", register);
 
-authRouter.post("/login", requireAuth, login);
+authRouter.post("/login", login);

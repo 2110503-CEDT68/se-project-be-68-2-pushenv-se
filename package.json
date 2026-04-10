@@ -14,7 +14,9 @@
     "db:push": "prisma db push",
     "compose:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
     "compose:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
-    "compose:nuke": "docker compose --env-file .env -f infra/docker-compose.yml down -v"
+    "compose:nuke": "docker compose --env-file .env -f infra/docker-compose.yml down -v",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -39,12 +41,15 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.5.2",
     "@types/pg": "^8.20.0",
     "prisma": "^7.6.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }

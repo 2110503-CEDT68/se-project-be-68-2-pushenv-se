@@ -7,9 +7,9 @@ export const companyRouter = Router();
 
 companyRouter.use(requireAuth, requireRole(["company"]));
 
-companyRouter.get("/profile", getProfile);
+companyRouter.get("/profile", requireAuth, getProfile);
 
-companyRouter.put("/profile", updateProfile);
+companyRouter.put("/profile", requireAuth, updateProfile);
 
 companyRouter.get("/events", (_request, response) =>
   sendSuccess(response, "Company events route scaffolded", notImplemented("GET /company/events"), 501),
