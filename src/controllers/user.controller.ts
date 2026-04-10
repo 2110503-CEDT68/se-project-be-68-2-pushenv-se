@@ -7,6 +7,14 @@ import { storageDirectories, StorageService } from "./../services/storage.servic
 import prisma from "./../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
 
+const userProfileSelect = {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    avatar: true,
+};
+
 // GET /users/me
 export const getMe = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -15,13 +23,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                avatar: true
-            }
+            select: userProfileSelect,
         });
 
         if (!user) return sendError(res, "User not found", 404);
@@ -46,13 +48,18 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
 
         const { name, phone }: { name?: string; phone?: string } = req.body;
 
-        if (name?.trim() === "" || name === undefined) return sendError(res, "Name cannot be empty", 400);
-        if (phone?.trim() === "" || phone === undefined) return sendError(res, "Phone cannot be empty", 400);
+        if (name !== undefined && name.trim() === "") return sendError(res, "Name cannot be empty", 400);
+        if (phone !== undefined && phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
 
         let formData: UpdateUserForm = {};
 
-        formData.name = name;
-        formData.phone = phone;
+        if (name !== undefined) {
+            formData.name = name;
+        }
+
+        if (phone !== undefined) {
+            formData.phone = phone;
+        }
 
         if (req.file) {
             await fs.mkdir(storageDirectories.avatars, { recursive: true });
@@ -68,6 +75,7 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
         const updated = await prisma.user.update({
             where: { id: userId },
             data: formData,
+            select: userProfileSelect,
         });
 
         sendSuccess(res, "User updated", updated);
