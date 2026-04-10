@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import { notImplemented, sendSuccess } from "../../utils/http.js";
+import { createAccount } from "../../controllers/admin.controller.js";
 
 export const adminRouter = Router();
 
@@ -10,9 +11,7 @@ adminRouter.get("/accounts", (_request, response) =>
   sendSuccess(response, "Admin accounts route scaffolded", notImplemented("GET /admin/accounts"), 501),
 );
 
-adminRouter.post("/accounts", (_request, response) =>
-  sendSuccess(response, "Admin create account scaffolded", notImplemented("POST /admin/accounts"), 501),
-);
+adminRouter.post("/accounts", requireAuth, createAccount);
 
 adminRouter.put("/accounts/:id", (_request, response) =>
   sendSuccess(response, "Admin update account scaffolded", notImplemented("PUT /admin/accounts/:id"), 501),
