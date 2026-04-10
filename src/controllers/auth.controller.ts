@@ -17,10 +17,6 @@ export const register = async (req: Request, res: Response) => {
       data: { name, email, passwordHash, role },
     });
 
-    if (role === "company") {
-      await prisma.companyProfile.create({ data: { userId: user.id } });
-    }
-
     const token = jwt.sign(
       { id: user.id, role: user.role },
       env.JWT_SECRET
@@ -40,7 +36,7 @@ export const login = async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return sendError(res, "Invalid credentials", 401);
-
+    
     const token = jwt.sign(
       { id: user.id, role: user.role },
       env.JWT_SECRET
