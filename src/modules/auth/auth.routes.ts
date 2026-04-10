@@ -1,12 +1,10 @@
 import { Router } from "express";
 import { notImplemented, sendSuccess } from "../../utils/http.js";
+import { register, login } from "../../controllers/auth.controller.js";
+import { requireAuth } from "../../middlewares/auth.js";
 
 export const authRouter = Router();
 
-authRouter.post("/register", (_request, response) =>
-  sendSuccess(response, "Register route scaffolded", notImplemented("POST /auth/register"), 501),
-);
+authRouter.post("/register", register);
 
-authRouter.post("/login", (_request, response) =>
-  sendSuccess(response, "Login route scaffolded", notImplemented("POST /auth/login"), 501),
-);
+authRouter.post("/login", login);

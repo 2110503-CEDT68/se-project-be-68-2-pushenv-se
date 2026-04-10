@@ -21,7 +21,6 @@ export function requireAuth(
   if (!header?.startsWith("Bearer ")) {
     return sendError(response, "Unauthorized", 401);
   }
-
   try {
     const token = header.replace("Bearer ", "");
     request.user = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
