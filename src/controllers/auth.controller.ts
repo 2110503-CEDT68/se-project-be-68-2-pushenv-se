@@ -17,6 +17,10 @@ export const register = async (req: Request, res: Response) => {
       data: { name, email, passwordHash, role },
     });
 
+    if (role === "company") {
+      await prisma.companyProfile.create({ data: { userId: user.id } });
+    }
+    
     const token = jwt.sign(
       { id: user.id, role: user.role },
       env.JWT_SECRET
