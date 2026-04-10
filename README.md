@@ -24,6 +24,7 @@ Start here when setting up the backend from scratch.
 2. Fill in these required values in `.env`:
 
    - `DATABASE_URL`
+   - `POSTGRES_PORT`
    - `JWT_SECRET`
 
 3. Start Postgres:
@@ -112,6 +113,7 @@ Use the right Prisma command for the environment.
 ## Runtime Notes
 
 - The backend listens on `PORT` from `.env` and defaults to `4000`.
+- `POSTGRES_PORT` controls the host port exposed by the local Postgres container.
 - `CORS_ORIGIN` should match the frontend origin during local development.
 - Prisma reads the datasource URL from `prisma.config.ts`, so `.env` stays the single source of truth.
 - The current route modules are scaffolds, so they are ready for implementation work.
