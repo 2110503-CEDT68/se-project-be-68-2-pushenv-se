@@ -5,7 +5,7 @@ import { upload } from "./../../utils/uploads.js";
 
 export const usersRouter = Router();
 
-// usersRouter.use(requireAuth, requireRole(["user"]));
+usersRouter.use(requireAuth, requireRole(["user"]));
 
 usersRouter.get("/me", getMe);
 
