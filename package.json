@@ -12,7 +12,9 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "compose:up": "docker compose -f infra/docker-compose.yml up -d"
+    "compose:up": "docker compose -f infra/docker-compose.yml up -d",
+    "compose:down" : "docker compose -f infra/docker-compose.yml down -d",
+    "compose:nuke": "docker compose -f infra/docker-compose.yml down -v"
   },
   "keywords": [],
   "author": "",
