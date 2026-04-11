@@ -11,7 +11,7 @@ adminRouter.get("/accounts", (_request, response) =>
   sendSuccess(response, "Admin accounts route scaffolded", notImplemented("GET /admin/accounts"), 501),
 );
 
-adminRouter.post("/accounts", requireAuth, createAccount);
+adminRouter.post("/accounts", createAccount);
 
 adminRouter.put("/accounts/:id", (_request, response) =>
   sendSuccess(response, "Admin update account scaffolded", notImplemented("PUT /admin/accounts/:id"), 501),
