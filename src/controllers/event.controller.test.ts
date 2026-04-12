@@ -14,6 +14,7 @@ jest.mock("../utils/prisma.js", () => ({
     event: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
     eventRegistration: {
       create: jest.fn(),
@@ -38,6 +39,9 @@ const mockFindMany = prisma.event.findMany as jest.MockedFunction<
 const mockFindUnique = prisma.event.findUnique as jest.MockedFunction<
   typeof prisma.event.findUnique
 >;
+const mockCount = prisma.event.count as jest.MockedFunction<
+  typeof prisma.event.count
+>;
 const mockRegistrationCreate =
   prisma.eventRegistration.create as jest.MockedFunction<
     typeof prisma.eventRegistration.create
@@ -49,6 +53,7 @@ function makeReq(overrides: Partial<AuthenticatedRequest> = {}): AuthenticatedRe
     user: { id: "user-123", role: "user" },
     body: {},
     params: {},
+    query: {},
     ...overrides,
   } as unknown as AuthenticatedRequest;
 }
@@ -76,16 +81,11 @@ const fakeEvent = {
 };
 
 const fakeCompany = {
-  eventId: "event-abc",
-  companyId: "profile-xyz",
   company: {
     id: "profile-xyz",
-    userId: "user-company-1",
     description: "We build software",
     logo: "https://example.com/logo.png",
     website: "https://example.com",
-    createdAt: new Date("2024-01-01T00:00:00Z"),
-    updatedAt: new Date("2024-01-01T00:00:00Z"),
     user: { name: "Tech Corp", email: "hr@techcorp.com" },
   },
 };
@@ -99,36 +99,59 @@ const fakeRegistration = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("getPublishedEvents", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
-  it("returns 200 with a list of published events", async () => {
+  it("returns 200 with paginated events using default page/limit", async () => {
     mockFindMany.mockResolvedValueOnce([fakeEvent] as Awaited<
       ReturnType<typeof prisma.event.findMany>
     >);
+    mockCount.mockResolvedValueOnce(1);
 
     const req = makeReq() as unknown as Request;
     const res = makeRes();
 
     await getPublishedEvents(req, res);
 
-    // Must filter only published events, sorted by startDate ascending
     expect(mockFindMany).toHaveBeenCalledWith({
       where: { isPublished: true },
       orderBy: { startDate: "asc" },
+      skip: 0,
+      take: 20,
     });
+    expect(mockCount).toHaveBeenCalledWith({ where: { isPublished: true } });
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       message: "Published events",
-      data: [fakeEvent],
+      data: { events: [fakeEvent], total: 1, page: 1, limit: 20 },
     });
   });
 
-  it("returns 200 with an empty array when no events are published", async () => {
+  it("returns 200 with correct skip when page > 1", async () => {
     mockFindMany.mockResolvedValueOnce([] as Awaited<
       ReturnType<typeof prisma.event.findMany>
     >);
+    mockCount.mockResolvedValueOnce(5);
+
+    const req = makeReq({ query: { page: "3", limit: "2" } } as any) as unknown as Request;
+    const res = makeRes();
+
+    await getPublishedEvents(req, res);
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 4, take: 2 }),
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ page: 3, limit: 2, total: 5 }) }),
+    );
+  });
+
+  it("returns 200 with empty events array when no events are published", async () => {
+    mockFindMany.mockResolvedValueOnce([] as Awaited<
+      ReturnType<typeof prisma.event.findMany>
+    >);
+    mockCount.mockResolvedValueOnce(0);
 
     const req = makeReq() as unknown as Request;
     const res = makeRes();
@@ -137,7 +160,7 @@ describe("getPublishedEvents", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, data: [] }),
+      expect.objectContaining({ success: true, data: expect.objectContaining({ events: [], total: 0 }) }),
     );
   });
 
@@ -158,7 +181,7 @@ describe("getPublishedEvents", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("getEventCompanies", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   it("returns 200 with the companies list for a valid event", async () => {
     mockFindUnique.mockResolvedValueOnce({
@@ -232,7 +255,7 @@ describe("getEventCompanies", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("registerForEvent", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   it("returns 201 with the registration when successful", async () => {
     // findUnique (event check) returns a published event

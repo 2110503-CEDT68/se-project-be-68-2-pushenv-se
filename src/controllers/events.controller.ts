@@ -3,14 +3,24 @@ import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import { sendSuccess, sendError } from "../utils/http.js";
 import prisma from "../utils/prisma.js";
 
-// GET /events  — public, no auth required
-export const getPublishedEvents = async (_req: Request, res: Response) => {
+// GET /events?page=1&limit=20  — public, no auth required
+export const getPublishedEvents = async (req: Request, res: Response) => {
     try {
-        const events = await prisma.event.findMany({
-            where: { isPublished: true },
-            orderBy: { startDate: "asc" }
-        })
-        return sendSuccess(res, "Published events", events);
+        const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 20));
+        const skip = (page - 1) * limit;
+
+        const [events, total] = await Promise.all([
+            prisma.event.findMany({
+                where: { isPublished: true },
+                orderBy: { startDate: "asc" },
+                skip,
+                take: limit,
+            }),
+            prisma.event.count({ where: { isPublished: true } }),
+        ]);
+
+        return sendSuccess(res, "Published events", { events, total, page, limit });
     } catch {
         return sendError(res, "Server error", 500);
     }
@@ -22,12 +32,16 @@ export const getEventCompanies = async (req: Request, res: Response) => {
         const id = req.params["id"] as string;  // ← cast here
 
         const event = await prisma.event.findUnique({
-            where: { id },  // ← now string, no error
+            where: { id },
             include: {
                 companies: {
-                    include: {
+                    select: {
                         company: {
-                            include: {
+                            select: {
+                                id: true,
+                                description: true,
+                                logo: true,
+                                website: true,
                                 user: { select: { name: true, email: true } },
                             },
                         },
