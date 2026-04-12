@@ -51,7 +51,7 @@ export const registerForEvent = async (req: AuthenticatedRequest, res: Response)
 
         const event = await prisma.event.findUnique({ where: { id: eventId } });
         if (!event) return sendError(res, "Event not found", 404);
-        if (!event.isPublished) return sendError(res, "Event not available", 404);
+        if (!event.isPublished) return sendError(res, "Event not available", 403);
 
         const registration = await prisma.eventRegistration.create({
             data: { eventId, userId },
