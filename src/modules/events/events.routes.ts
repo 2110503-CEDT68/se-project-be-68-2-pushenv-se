@@ -1,17 +1,22 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
-import { notImplemented, sendSuccess } from "../../utils/http.js";
+import {
+  getPublishedEvents,
+  getEventCompanies,
+  registerForEvent,
+} from "../../controllers/events.controller.js";
+
 
 export const eventsRouter = Router();
 
-eventsRouter.get("/", (_request, response) =>
-  sendSuccess(response, "Published events route scaffolded", notImplemented("GET /events"), 501),
-);
+// Public routes — no auth needed
+eventsRouter.get("/", getPublishedEvents);
+eventsRouter.get("/:id/companies", getEventCompanies);
 
-eventsRouter.get("/:id/companies", (_request, response) =>
-  sendSuccess(response, "Event companies route scaffolded", notImplemented("GET /events/:id/companies"), 501),
-);
-
-eventsRouter.post("/:id/register", requireAuth, requireRole(["user"]), (_request, response) =>
-  sendSuccess(response, "Event registration scaffolded", notImplemented("POST /events/:id/register"), 501),
+// Protected — must be logged in as a "user" role
+eventsRouter.post(
+  "/:id/register",
+  requireAuth,
+  requireRole(["user"]),
+  registerForEvent,
 );
