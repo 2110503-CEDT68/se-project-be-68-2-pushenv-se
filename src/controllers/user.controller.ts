@@ -28,9 +28,9 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
 
         if (!user) return sendError(res, "User not found", 404);
 
-        sendSuccess(res, "User get", user);
+        return sendSuccess(res, "User get", user);
     } catch (err) {
-        sendError(res, "Server Error", 500);
+        return sendError(res, "Server Error", 500);
     }
 };
 
@@ -78,9 +78,9 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
             select: userProfileSelect,
         });
 
-        sendSuccess(res, "User updated", updated);
+        return sendSuccess(res, "User updated", updated);
     } catch (err) {
-        sendError(res, "Server Error", 500);
+        return sendError(res, "Server Error", 500);
     }
 };
 
@@ -100,8 +100,8 @@ export const deleteMe = async (req: AuthenticatedRequest, res: Response) => {
             where: { id: userId }
         });
 
-        sendSuccess(res, "User deleted", null);
+        return sendSuccess(res, "User deleted", null);
     } catch (err) {
-        sendError(res, "Server Error", 500);
+        return sendError(res, "Server Error", 500);
     }
 };

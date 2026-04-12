@@ -11,12 +11,12 @@ export const createAccount = async (req: AuthenticatedRequest, res: Response) =>
         const { name, email, password, role } = req.body;
         const CREATABLE_ROLES = ["company", "user"] as const;
 
-        if (!CREATABLE_ROLES.includes(role)) {return sendError(res, "Invalid role", 400);}
-        if (!name || !email || !password || !role) {return sendError(res, "Missing required fields", 400);}
+        if (!CREATABLE_ROLES.includes(role)) return sendError(res, "Invalid role", 400);
+        if (!name || !email || !password || !role) { return sendError(res, "Missing required fields", 400); }
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return sendError(res, "Email already in use", 409);
-        
+
         const passwordHash = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
             data: { name, email, passwordHash, role },
@@ -28,6 +28,6 @@ export const createAccount = async (req: AuthenticatedRequest, res: Response) =>
 
         return sendSuccess(res, "Created User profile", { name, email, role });
     } catch (err) {
-        sendError(res, "Server Error", 500);
+        return sendError(res, "Server Error", 500);
     }
 };

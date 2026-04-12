@@ -8,6 +8,17 @@ async function getCompanyProfile(userId: string) {
     return prisma.companyProfile.findUnique({ where: { userId } });
 }
 
+//Helper: patch job close or open
+async function setJobClosed(req: AuthenticatedRequest, res: Response, isClosed: boolean) {
+  const id = req.params["id"] as string;
+  const profile = await getCompanyProfile(req.user!.id);
+  if (!profile) return sendError(res, "Profile not found", 404);
+  const existing = await prisma.jobListing.findFirst({ where: { id, companyId: profile.id } });
+  if (!existing) return sendError(res, "Job not found", 404);
+  const updated = await prisma.jobListing.update({ where: { id }, data: { isClosed } });
+  return sendSuccess(res, isClosed ? "Job closed" : "Job opened", updated);
+}
+
 // Get /company/profile
 export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -103,50 +114,10 @@ export const updateJob = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 // PATCH /company/jobs/:id/close
-export const closeJob = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const id = req.params["id"] as string;
-
-        const profile = await getCompanyProfile(req.user!.id);
-        if (!profile) return sendError(res, "Profile not found", 404);
-
-        const existing = await prisma.jobListing.findFirst({
-            where: { id, companyId: profile.id },
-        });
-        if (!existing) return sendError(res, "Job not found", 404);
-
-        const closed = await prisma.jobListing.update({
-            where: { id },
-            data: { isClosed: true },
-        });
-        return sendSuccess(res, "Job closed", closed);
-    } catch {
-        return sendError(res, "Server error", 500);
-    }
-};
+export const closeJob = (req: AuthenticatedRequest, res: Response) => setJobClosed(req, res, true);
 
 // PATCH /company/jobs/:id/open
-export const openJob = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const id = req.params["id"] as string;
-
-        const profile = await getCompanyProfile(req.user!.id);
-        if (!profile) return sendError(res, "Profile not found", 404);
-
-        const existing = await prisma.jobListing.findFirst({
-            where: { id, companyId: profile.id },
-        });
-        if (!existing) return sendError(res, "Job not found", 404);
-
-        const closed = await prisma.jobListing.update({
-            where: { id },
-            data: { isClosed: false },
-        });
-        return sendSuccess(res, "Job opened", closed);
-    } catch {
-        return sendError(res, "Server error", 500);
-    }
-};
+export const openJob  = (req: AuthenticatedRequest, res: Response) => setJobClosed(req, res, false);
 
 // DELETE /company/jobs/:id
 export const deleteJob = async (req: AuthenticatedRequest, res: Response) => {

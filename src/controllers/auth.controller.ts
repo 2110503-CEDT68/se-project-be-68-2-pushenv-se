@@ -8,7 +8,13 @@ import { env } from "../config/env.js";
 // POST /auth/register
 export const register = async (req: Request, res: Response) => {
   try {
+    const ALLOWED_ROLES = ["user", "company"] as const;
     const { name, email, password, role } = req.body;
+
+    if (!ALLOWED_ROLES.includes(role)) {
+      return sendError(res, "Invalid role", 400);
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return sendError(res, "Email already in use", 409);
 
@@ -20,10 +26,11 @@ export const register = async (req: Request, res: Response) => {
     if (role === "company") {
       await prisma.companyProfile.create({ data: { userId: user.id } });
     }
-    
+
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      env.JWT_SECRET
+      env.JWT_SECRET,
+      { expiresIn: "7d" }
     );
     return sendSuccess(res, "Registered successfully", { token }, 201);
   } catch {
@@ -40,7 +47,7 @@ export const login = async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return sendError(res, "Invalid credentials", 401);
-    
+
     const token = jwt.sign(
       { id: user.id, role: user.role },
       env.JWT_SECRET

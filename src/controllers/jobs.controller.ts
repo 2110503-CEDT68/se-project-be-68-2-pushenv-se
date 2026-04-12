@@ -7,16 +7,19 @@ import { sendSuccess, sendError } from "../utils/http.js";
 export const getCompanyJobs = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const id = req.params["companyId"] as string;
-        
+
         // FIX: Added 'await' to ensure the Promise resolves before evaluating
-        const company = await prisma.companyProfile.findUnique({ where: { id: id} });
+        const company = await prisma.companyProfile.findUnique({ where: { id: id } });
         if (!company) return sendError(res, "Company not found", 404);
-        
-        const jobs = await prisma.jobListing.findMany({ where: { companyId: id } });
+
+        const jobs = await prisma.jobListing.findMany({
+            where: { companyId: id, isClosed: false },
+            orderBy: { createdAt: "desc" },
+        });
         return sendSuccess(res, "All jobs in this company", jobs);
-    } catch (error) {
-        console.error("Error in getCompanyJobs:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 }
 
@@ -25,12 +28,12 @@ export const getJob = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const id = req.params["id"] as string;
         const job = await prisma.jobListing.findUnique({ where: { id: id } });
-        
+
         if (!job) return sendError(res, "Job not found", 404);
         return sendSuccess(res, "Can find this job", job);
-    } catch (error) {
-        console.error("Error in getJob:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 }
 
@@ -39,15 +42,17 @@ export const adminGetCompanyJobs = async (req: AuthenticatedRequest, res: Respon
     try {
         const companyId = req.params["companyId"] as string;
 
-        const company = await prisma.companyProfile.findUnique({ where: { id: companyId, role: "company" } });
+        const company = await prisma.companyProfile.findUnique({
+            where: { id: companyId },
+        });
         if (!company) return sendError(res, "Company not found", 404);
 
         const jobs = await prisma.jobListing.findMany({ where: { companyId: companyId } });
-        
+
         return sendSuccess(res, "All jobs in this company", jobs);
-    } catch (error) {
-        console.error("Error in adminGetCompanyJobs:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 }
 
@@ -56,12 +61,12 @@ export const adminGetCompanyJob = async (req: AuthenticatedRequest, res: Respons
     try {
         const jobId = req.params["id"] as string;
         const job = await prisma.jobListing.findUnique({ where: { id: jobId } });
-        
+
         if (!job) return sendError(res, "Cannot find this job", 404);
         return sendSuccess(res, "Can find this job", job);
-    } catch (error) {
-        console.error("Error in adminGetCompanyJob:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 }
 
@@ -69,37 +74,37 @@ export const adminGetCompanyJob = async (req: AuthenticatedRequest, res: Respons
 export const adminCreateCompanyJobs = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const companyId = req.params["companyId"] as string;
-        
+
         // FIX: Added 'await' to properly check if the company exists
         const company = await prisma.companyProfile.findUnique({ where: { id: companyId } });
         if (!company) return sendError(res, "Cannot find this companyId", 404);
-        
+
         const { title, type, location, description, requirements, qualifications, salary, attachment, isClosed } = req.body;
-        
+
         // FIX: Basic validation to prevent Prisma crashes from null constraints
         if (!title || !type || !location) {
             return sendError(res, "Missing required fields (e.g., title, type, location)", 400);
         }
 
-        const job = await prisma.jobListing.create({ 
-            data: { 
-                companyId: companyId, 
-                title, 
-                type, 
-                location, 
-                description, 
-                requirements, 
-                qualifications, 
-                salary, 
-                attachment, 
-                isClosed 
-            } 
+        const job = await prisma.jobListing.create({
+            data: {
+                companyId: companyId,
+                title,
+                type,
+                location,
+                description,
+                requirements,
+                qualifications,
+                salary,
+                attachment,
+                isClosed
+            }
         });
-        
-        return sendSuccess(res, "Create success", job);
-    } catch (error) {
-        console.error("Error in adminCreateCompanyJobs:", error);
-        return sendError(res, "Internal server error", 500);
+
+        return sendSuccess(res, "Job created", job, 201);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 }
 
@@ -107,7 +112,7 @@ export const adminCreateCompanyJobs = async (req: AuthenticatedRequest, res: Res
 export const adminUpdateJob = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const jobId = req.params["id"] as string;
-        
+
         // 1. Verify the job exists first
         const existingJob = await prisma.jobListing.findUnique({ where: { id: jobId } });
         if (!existingJob) return sendError(res, "Job not found", 404);
@@ -119,23 +124,23 @@ export const adminUpdateJob = async (req: AuthenticatedRequest, res: Response) =
         // 3. Update the job
         const updatedJob = await prisma.jobListing.update({
             where: { id: jobId },
-            data: { 
-                title, 
-                type, 
-                location, 
-                description, 
-                requirements, 
-                qualifications, 
-                salary, 
-                attachment, 
-                isClosed 
+            data: {
+                title,
+                type,
+                location,
+                description,
+                requirements,
+                qualifications,
+                salary,
+                attachment,
+                isClosed
             }
         });
 
         return sendSuccess(res, "Job updated successfully", updatedJob);
-    } catch (error) {
-        console.error("Error updating job:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 };
 
@@ -154,9 +159,9 @@ export const adminCloseJob = async (req: AuthenticatedRequest, res: Response) =>
         });
 
         return sendSuccess(res, "Job closed successfully", closedJob);
-    } catch (error) {
-        console.error("Error closing job:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 };
 
@@ -168,15 +173,15 @@ export const adminOpenJob = async (req: AuthenticatedRequest, res: Response) => 
         const existingJob = await prisma.jobListing.findUnique({ where: { id: jobId } });
         if (!existingJob) return sendError(res, "Job not found", 404);
 
-        const closedJob = await prisma.jobListing.update({
+        const openJob = await prisma.jobListing.update({
             where: { id: jobId },
             data: { isClosed: false }
         });
 
-        return sendSuccess(res, "Job closed successfully", closedJob);
-    } catch (error) {
-        console.error("Error closing job:", error);
-        return sendError(res, "Internal server error", 500);
+        sendSuccess(res, "Job opened successfully", openJob);
+    }
+    catch {
+        return sendError(res, "Server error", 500);
     }
 };
 
@@ -194,8 +199,8 @@ export const adminDeleteJob = async (req: AuthenticatedRequest, res: Response) =
         });
 
         return sendSuccess(res, "Job deleted successfully", null);
-    } catch (error) {
-        console.error("Error deleting job:", error);
-        return sendError(res, "Internal server error", 500);
+
+    } catch {
+        return sendError(res, "Server error", 500);
     }
 };
