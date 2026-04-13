@@ -22,6 +22,7 @@ async function setJobClosed(req: AuthenticatedRequest, res: Response, isClosed: 
 // Get /company/profile
 export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
     try {
+        console.log(req.user);
         const profile = await getCompanyProfile(req.user!.id);
         if (!profile) return sendError(res, "Profile not found", 404);
         return sendSuccess(res, "Company profile", profile)

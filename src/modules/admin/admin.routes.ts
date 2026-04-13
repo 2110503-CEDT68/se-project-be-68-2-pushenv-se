@@ -1,47 +1,34 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
-import { notImplemented, sendSuccess } from "../../utils/http.js";
-import { createAccount } from "../../controllers/admin.controller.js";
+import {
+    getAccounts,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    getEvents,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    publishEvent,
+    addCompanyToEvent,
+    removeCompanyFromEvent,
+} from "../../controllers/admin.controller.js";
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole(["admin"]));
 
-adminRouter.get("/accounts", (_request, response) =>
-  sendSuccess(response, "Admin accounts route scaffolded", notImplemented("GET /admin/accounts"), 501),
-);
+// ── Accounts ──────────────────────────────────────────────────────────────────
+adminRouter.get("/accounts",        getAccounts);       // US1-7 (with ?name & ?role filter)
+adminRouter.post("/accounts",       createAccount);     // US1-8
+adminRouter.put("/accounts/:id",    updateAccount);     // US1-9 (incl. password reset)
+adminRouter.delete("/accounts/:id", deleteAccount);     // US1-10
 
-adminRouter.post("/accounts", createAccount);
-
-adminRouter.put("/accounts/:id", (_request, response) =>
-  sendSuccess(response, "Admin update account scaffolded", notImplemented("PUT /admin/accounts/:id"), 501),
-);
-
-adminRouter.delete("/accounts/:id", (_request, response) =>
-  sendSuccess(response, "Admin delete account scaffolded", notImplemented("DELETE /admin/accounts/:id"), 501),
-);
-
-adminRouter.get("/events", (_request, response) =>
-  sendSuccess(response, "Admin events route scaffolded", notImplemented("GET /admin/events"), 501),
-);
-
-adminRouter.post("/events", (_request, response) =>
-  sendSuccess(response, "Admin create event scaffolded", notImplemented("POST /admin/events"), 501),
-);
-
-adminRouter.put("/events/:id", (_request, response) =>
-  sendSuccess(response, "Admin update event scaffolded", notImplemented("PUT /admin/events/:id"), 501),
-);
-
-adminRouter.delete("/events/:id", (_request, response) =>
-  sendSuccess(response, "Admin delete event scaffolded", notImplemented("DELETE /admin/events/:id"), 501),
-);
-
-adminRouter.patch("/events/:id/publish", (_request, response) =>
-  sendSuccess(
-    response,
-    "Admin publish event scaffolded",
-    notImplemented("PATCH /admin/events/:id/publish"),
-    501,
-  ),
-);
+// ── Events ────────────────────────────────────────────────────────────────────
+adminRouter.get("/events",                              getEvents);             // US2-4 (with ?name & ?date filter)
+adminRouter.post("/events",                             createEvent);           // US2-6
+adminRouter.put("/events/:id",                          updateEvent);           // US2-5 (details)
+adminRouter.delete("/events/:id",                       deleteEvent);           // US2-7
+adminRouter.patch("/events/:id/publish",                publishEvent);          // US2-8
+adminRouter.post("/events/:id/companies",               addCompanyToEvent);     // US2-5 (link company)
+adminRouter.delete("/events/:id/companies/:companyId",  removeCompanyFromEvent); // US2-5 (unlink company)

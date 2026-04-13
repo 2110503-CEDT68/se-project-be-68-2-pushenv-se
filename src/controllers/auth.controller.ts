@@ -4,14 +4,19 @@ import jwt from "jsonwebtoken";
 import { sendSuccess, sendError } from "../utils/http.js";
 import prisma from "../utils/prisma.js";
 import { env } from "../config/env.js";
+import { AuthenticatedRequest } from "../middlewares/auth.js";
 
 // POST /auth/register
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const ALLOWED_ROLES = ["user", "company"] as const;
     const { name, email, password, role } = req.body;
 
-    if (!ALLOWED_ROLES.includes(role)) {
+    if (!name || !email || !password || !role) {
+      return sendError(res, "Missing required fields", 400);
+    }
+
+    if (role !== "user") {
       return sendError(res, "Invalid role", 400);
     }
 
@@ -53,7 +58,8 @@ export const login = async (req: Request, res: Response) => {
       env.JWT_SECRET
     );
     return sendSuccess(res, "Login successful", { token });
-  } catch {
+  } catch (err){
+    console.log(err);
     return sendError(res, "Server error", 500);
   }
 };
