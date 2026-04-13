@@ -1,6 +1,6 @@
 import { Response } from "express";
-import type { AuthenticatedRequest } from "../middlewares/auth.js";
-import type prismaType from "../utils/prisma.js";
+import type { AuthenticatedRequest } from "../../middlewares/auth.js";
+import type prismaType from "../../utils/prisma.js";
 import type {
   getProfile as GetProfileType,
   updateProfile as UpdateProfileType,
@@ -9,7 +9,7 @@ import type {
   updateJob as UpdateJobType,
   closeJob as CloseJobType,
   deleteJob as DeleteJobType,
-} from "../controllers/company.controller.js";
+} from "../company.controller.js";
 
 jest.mock("../utils/prisma.js", () => ({
   __esModule: true,

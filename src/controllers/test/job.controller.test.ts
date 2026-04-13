@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { AuthenticatedRequest } from "./../middlewares/auth.js";
+import { AuthenticatedRequest } from "../../middlewares/auth.js";
 
 // --- MOCKS ---
 

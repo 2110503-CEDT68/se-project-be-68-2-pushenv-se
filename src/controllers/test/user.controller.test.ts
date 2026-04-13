@@ -1,12 +1,12 @@
 import { Response } from "express";
 import fs from "node:fs/promises";
 import type { Express } from "express";
-import type { AuthenticatedRequest } from "../middlewares/auth.js";
-import type prismaType from "../utils/prisma.js";
+import type { AuthenticatedRequest } from "../../middlewares/auth.js";
+import type prismaType from "../../utils/prisma.js";
 import type {
   getMe as GetMeType,
   updateMe as UpdateMeType,
-} from "../controllers/user.controller.js";
+} from "../user.controller.js";
 
 jest.mock("node:fs/promises", () => ({
   __esModule: true,

@@ -1,9 +1,9 @@
 import { Response } from "express";
-import { AuthenticatedRequest } from "./../middlewares/auth.js";
+import { AuthenticatedRequest } from "../../middlewares/auth.js";
 import bcrypt from "bcrypt";
-import prisma from "./../utils/prisma.js";
-import { sendSuccess, sendError } from "../utils/http.js";
-import * as adminControllers from "./admin.controller.js"; // Adjust path to match your file name
+import prisma from "../../utils/prisma.js";
+import { sendSuccess, sendError } from "../../utils/http.js";
+import * as adminControllers from "../admin.controller.js"; // Adjust path to match your file name
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 

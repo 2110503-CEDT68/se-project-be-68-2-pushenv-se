@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import type { AuthenticatedRequest } from "../middlewares/auth.js";
-import type prismaType from "../utils/prisma.js";
+import type { AuthenticatedRequest } from "../../middlewares/auth.js";
+import type prismaType from "../../utils/prisma.js";
 import type {
   getPublishedEvents as GetPublishedEventsType,
   getEventCompanies as GetEventCompaniesType,
   registerForEvent as RegisterForEventType,
-} from "../controllers/events.controller.js";
+} from "../events.controller.js";
 
 // ── Mock prisma BEFORE any require() ─────────────────────────────────────────
-jest.mock("../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
   default: {
     event: {
@@ -23,7 +23,7 @@ jest.mock("../utils/prisma.js", () => ({
 }));
 
 // ── Load mocked modules via require() ─────────────────────────────────────────
-const prisma = require("../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default as typeof prismaType;
 const { getPublishedEvents, getEventCompanies, registerForEvent } = require(
   "../controllers/events.controller",
 ) as {

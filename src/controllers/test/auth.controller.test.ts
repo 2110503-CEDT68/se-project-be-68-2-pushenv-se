@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { sendSuccess, sendError } from "../utils/http.js";
-import prisma from "../utils/prisma.js";
-import * as authControllers from "./auth.controller.js";
+import { sendSuccess, sendError } from "../../utils/http.js";
+import prisma from "../../utils/prisma.js";
+import * as authControllers from "../auth.controller.js";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
