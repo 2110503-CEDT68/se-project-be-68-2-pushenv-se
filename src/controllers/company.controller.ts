@@ -10,19 +10,22 @@ async function getCompanyProfile(userId: string) {
 
 //Helper: patch job close or open
 async function setJobClosed(req: AuthenticatedRequest, res: Response, isClosed: boolean) {
-  const id = req.params["id"] as string;
-  const profile = await getCompanyProfile(req.user!.id);
-  if (!profile) return sendError(res, "Profile not found", 404);
-  const existing = await prisma.jobListing.findFirst({ where: { id, companyId: profile.id } });
-  if (!existing) return sendError(res, "Job not found", 404);
-  const updated = await prisma.jobListing.update({ where: { id }, data: { isClosed } });
-  return sendSuccess(res, isClosed ? "Job closed" : "Job opened", updated);
+  try {
+    const id = req.params["id"] as string;
+    const profile = await getCompanyProfile(req.user!.id);
+    if (!profile) return sendError(res, "Profile not found", 404);
+    const existing = await prisma.jobListing.findFirst({ where: { id, companyId: profile.id } });
+    if (!existing) return sendError(res, "Job not found", 404);
+    const updated = await prisma.jobListing.update({ where: { id }, data: { isClosed } });
+    return sendSuccess(res, isClosed ? "Job closed" : "Job opened", updated);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
 }
 
 // Get /company/profile
 export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
     try {
-        console.log(req.user);
         const profile = await getCompanyProfile(req.user!.id);
         if (!profile) return sendError(res, "Profile not found", 404);
         return sendSuccess(res, "Company profile", profile)

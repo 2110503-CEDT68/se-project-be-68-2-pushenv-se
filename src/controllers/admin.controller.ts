@@ -58,14 +58,12 @@ export const createAccount = async (req: AuthenticatedRequest, res: Response) =>
             data: { name, email, passwordHash, role },
         });
 
-        let id = user.id;
-
         if (role === "company") {
-            const profile = await prisma.companyProfile.create({ data: { userId: user.id } });
-            id = profile.id
+            await prisma.companyProfile.create({ data: { userId: user.id } });
         }
 
-        return sendSuccess(res, "Account created", { id, name, email, role }, 201);
+        // Always return user.id — PUT/DELETE /admin/accounts/:id all look up by User.id
+        return sendSuccess(res, "Account created", { id: user.id, name, email, role }, 201);
     } catch {
         return sendError(res, "Server error", 500);
     }
@@ -280,7 +278,7 @@ export const addCompanyToEvent = async (req: AuthenticatedRequest, res: Response
         const event = await prisma.event.findUnique({ where: { id: eventId } });
         if (!event) return sendError(res, "Event not found", 404);
 
-        const company = await prisma.companyProfile.findFirst({ where: { id: companyId } });
+        const company = await prisma.companyProfile.findUnique({ where: { id: companyId } });
         if (!company) return sendError(res, "Company not found", 404);
 
         // P2002 = already linked
