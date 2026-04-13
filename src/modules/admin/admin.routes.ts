@@ -1,25 +1,19 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import { notImplemented, sendSuccess } from "../../utils/http.js";
-import { createAccount } from "../../controllers/admin.controller.js";
+import { getAccounts, createAccount, updateAccount, deleteAccount } from "../../controllers/admin.controller.js";
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole(["admin"]));
 
-adminRouter.get("/accounts", (_request, response) =>
-  sendSuccess(response, "Admin accounts route scaffolded", notImplemented("GET /admin/accounts"), 501),
-);
+adminRouter.get("/accounts", getAccounts);
 
 adminRouter.post("/accounts", createAccount);
 
-adminRouter.put("/accounts/:id", (_request, response) =>
-  sendSuccess(response, "Admin update account scaffolded", notImplemented("PUT /admin/accounts/:id"), 501),
-);
+adminRouter.put("/accounts/:id", updateAccount);
 
-adminRouter.delete("/accounts/:id", (_request, response) =>
-  sendSuccess(response, "Admin delete account scaffolded", notImplemented("DELETE /admin/accounts/:id"), 501),
-);
+adminRouter.delete("/accounts/:id", deleteAccount);
 
 adminRouter.get("/events", (_request, response) =>
   sendSuccess(response, "Admin events route scaffolded", notImplemented("GET /admin/events"), 501),
