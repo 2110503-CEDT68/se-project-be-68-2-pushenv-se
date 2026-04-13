@@ -4,20 +4,19 @@ import jwt from "jsonwebtoken";
 import { sendSuccess, sendError } from "../utils/http.js";
 import prisma from "../utils/prisma.js";
 import { env } from "../config/env.js";
-import { AuthenticatedRequest } from "../middlewares/auth.js";
 
 // POST /auth/register
-export const register = async (req: AuthenticatedRequest, res: Response) => {
+export const register = async (req: Request, res: Response) => {
   try {
-    const ALLOWED_ROLES = ["user", "company"] as const;
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password || !role) {
       return sendError(res, "Missing required fields", 400);
     }
 
+    // Strictly enforce "user" role for public registration
     if (role !== "user") {
-      return sendError(res, "Invalid role", 400);
+      return sendError(res, "Invalid role. Only 'user' accounts can be registered here.", 400);
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -27,10 +26,6 @@ export const register = async (req: AuthenticatedRequest, res: Response) => {
     const user = await prisma.user.create({
       data: { name, email, passwordHash, role },
     });
-
-    if (role === "company") {
-      await prisma.companyProfile.create({ data: { userId: user.id } });
-    }
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
@@ -58,13 +53,8 @@ export const login = async (req: Request, res: Response) => {
       env.JWT_SECRET
     );
     return sendSuccess(res, "Login successful", { token });
-  } catch (err){
+  } catch (err) {
     console.log(err);
     return sendError(res, "Server error", 500);
   }
 };
-
-// Update auth.routes.ts:
-// import { register, login } from "../../controllers/auth.controller.js";
-// authRouter.post("/register", register);
-// authRouter.post("/login",    login);
