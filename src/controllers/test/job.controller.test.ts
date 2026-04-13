@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from "../../middlewares/auth.js";
 // --- MOCKS ---
 
 // Mock Prisma
-jest.mock("./../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
     __esModule: true,
     default: {
         companyProfile: {
@@ -22,7 +22,7 @@ jest.mock("./../utils/prisma.js", () => ({
 
 
 // Load controller via require() so jest.mock is already applied
-const prisma = require("./../utils/prisma.js").default;
+const prisma = require("../../utils/prisma.js").default;
 const {
     getCompanyJobs,
     getJob,
@@ -31,7 +31,7 @@ const {
     adminCloseJob,
     adminOpenJob,
     adminDeleteJob,
-} = require("./jobs.controller");
+} = require("../jobs.controller.js");
 
 // Helper to create a mock Request object
 const mockRequest = (params = {}, body = {}) => {

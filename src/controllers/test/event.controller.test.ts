@@ -25,7 +25,7 @@ jest.mock("../../utils/prisma.js", () => ({
 // ── Load mocked modules via require() ─────────────────────────────────────────
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
 const { getPublishedEvents, getEventCompanies, registerForEvent } = require(
-  "../controllers/events.controller",
+  "../events.controller.js",
 ) as {
   getPublishedEvents: typeof GetPublishedEventsType;
   getEventCompanies: typeof GetEventCompaniesType;

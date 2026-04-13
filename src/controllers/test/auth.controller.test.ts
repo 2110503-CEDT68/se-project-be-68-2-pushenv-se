@@ -16,18 +16,18 @@ jest.mock("jsonwebtoken", () => ({
     sign: jest.fn(),
 }));
 
-jest.mock("../utils/http.js", () => ({
+jest.mock("../../utils/http.js", () => ({
     sendSuccess: jest.fn(),
     sendError: jest.fn(),
 }));
 
-jest.mock("../config/env.js", () => ({
+jest.mock("../../config/env.js", () => ({
     env: {
         JWT_SECRET: "super-secret-test-key",
     },
 }));
 
-jest.mock("../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
     __esModule: true,
     default: {
         user: {

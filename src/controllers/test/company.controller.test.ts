@@ -11,7 +11,7 @@ import type {
   deleteJob as DeleteJobType,
 } from "../company.controller.js";
 
-jest.mock("../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
   default: {
     companyProfile: {
@@ -30,7 +30,7 @@ jest.mock("../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default as typeof prismaType;
 const {
   getProfile,
   updateProfile,
@@ -39,7 +39,7 @@ const {
   updateJob,
   closeJob,
   deleteJob,
-} = require("../controllers/company.controller") as {
+} = require("../company.controller.js") as {
   getProfile: typeof GetProfileType;
   updateProfile: typeof UpdateProfileType;
   getCompanyEvents: typeof GetCompanyEventsType;

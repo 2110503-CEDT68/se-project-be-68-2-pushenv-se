@@ -11,12 +11,12 @@ jest.mock("bcrypt", () => ({
     hash: jest.fn(),
 }));
 
-jest.mock("../utils/http.js", () => ({
+jest.mock("../../utils/http.js", () => ({
     sendSuccess: jest.fn(),
     sendError: jest.fn(),
 }));
 
-jest.mock("./../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
     __esModule: true,
     default: {
         user: {
