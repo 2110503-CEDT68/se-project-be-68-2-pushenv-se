@@ -93,7 +93,7 @@ const fakeCompany = {
 const fakeRegistration = {
   id: "reg-001",
   eventId: "event-abc",
-  userId: "user-123",
+  jobSeekerId: "user-123",
   registeredAt: new Date("2024-10-01T00:00:00Z"),
 };
 
@@ -274,7 +274,7 @@ describe("registerForEvent", () => {
 
     expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: "event-abc" } });
     expect(mockRegistrationCreate).toHaveBeenCalledWith({
-      data: { eventId: "event-abc", userId: "user-123" },
+      data: { eventId: "event-abc", jobSeekerId: "user-123" },
     });
 
     expect(res.status).toHaveBeenCalledWith(201);

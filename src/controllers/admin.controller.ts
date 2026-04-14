@@ -19,21 +19,38 @@ const safeUserSelect = {
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
 
-// GET /admin/accounts?name=john&role=company
+// GET /admin/accounts?name=john&role=company&page=1&limit=10
 export const getAccounts = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const name = req.query["name"] as string | undefined;
     const role = req.query["role"] as string | undefined;
+    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const skip = (page - 1) * limit;
 
-    const jobSeekers = await prisma.user.findMany({
-      where: {
-        ...(role ? { role: role as any } : {}),
-        ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
-      },
-      select: safeUserSelect,
-      orderBy: { createdAt: "desc" },
+    const where = {
+      ...(role ? { role: role as any } : {}),
+      ...(name ? { name: { contains: name, mode: "insensitive" as const } } : {}),
+    };
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: safeUserSelect,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return sendSuccess(res, "All accounts", {
+      data: users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
-    return sendSuccess(res, "All accounts", jobSeekers);
   } catch {
     return sendError(res, "Server error", 500);
   }

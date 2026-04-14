@@ -75,7 +75,7 @@ function makeRes(): Response {
 
 const fakeProfile = {
   id: "profile-abc",
-  userId: "user-123",
+  companyUserId: "user-123",
   description: "We build great software",
   logo: "https://cdn.example.com/logo.png",
   website: "https://example.com",
@@ -122,7 +122,7 @@ describe("getProfile", () => {
     const req = makeReq();
     const res = makeRes();
     await getProfile(req, res);
-    expect(mockProfileFindUnique).toHaveBeenCalledWith({ where: { userId: "user-123" } });
+    expect(mockProfileFindUnique).toHaveBeenCalledWith({ where: { companyUserId: "user-123" } });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true, message: "Company profile", data: fakeProfile });
   });
@@ -158,7 +158,7 @@ describe("updateProfile", () => {
     const req = makeReq({ body: updateBody });
     const res = makeRes();
     await updateProfile(req, res);
-    expect(mockProfileUpdate).toHaveBeenCalledWith({ where: { userId: "user-123" }, data: { description: updateBody.description, logo: updateBody.logo, website: updateBody.website } });
+    expect(mockProfileUpdate).toHaveBeenCalledWith({ where: { companyUserId: "user-123" }, data: { description: updateBody.description, logo: updateBody.logo, website: updateBody.website } });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true, message: "Profile updated", data: updatedProfile });
   });
