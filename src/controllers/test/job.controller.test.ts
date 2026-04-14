@@ -26,7 +26,7 @@ const prisma = require("../../utils/prisma.js").default;
 const {
     getCompanyJobs,
     getJob,
-    adminCreateCompanyJobs,
+    adminCreateCompanyJob,
     adminUpdateJob,
     adminCloseJob,
     adminOpenJob,
@@ -125,12 +125,12 @@ describe("Job Controllers", () => {
         });
     });
 
-    describe("adminCreateCompanyJobs", () => {
+    describe("adminCreateCompanyJob", () => {
         it("should return 404 if company does not exist", async () => {
             const req = mockRequest({ companyId: "123" }, { title: "Dev", type: "Full", location: "NY", description: "Desc" });
             (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue(null);
 
-            await adminCreateCompanyJobs(req, res);
+            await adminCreateCompanyJob(req, res);
 
             expect(res.status).toHaveBeenCalledWith(404);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Company not found" }));
@@ -140,7 +140,7 @@ describe("Job Controllers", () => {
             const req = mockRequest({ companyId: "123" }, { title: "Dev" }); // Missing type, location, description
             (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue({ id: "123" });
 
-            await adminCreateCompanyJobs(req, res);
+            await adminCreateCompanyJob(req, res);
 
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Missing required fields" }));
@@ -154,7 +154,7 @@ describe("Job Controllers", () => {
             (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue({ id: "123" });
             (prisma.jobListing.create as jest.Mock).mockResolvedValue(mockJob);
 
-            await adminCreateCompanyJobs(req, res);
+            await adminCreateCompanyJob(req, res);
 
             expect(prisma.jobListing.create).toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(201);

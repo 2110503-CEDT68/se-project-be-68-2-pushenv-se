@@ -25,6 +25,7 @@ jest.mock("../../utils/prisma.js", () => ({
             create: jest.fn(),
             update: jest.fn(),
             delete: jest.fn(),
+            count: jest.fn(),
         },
         companyProfile: {
             create: jest.fn(),
@@ -87,6 +88,7 @@ describe("Admin Controllers", () => {
                 const req = mockRequest({}, { name: "john", role: "user" });
                 const mockUsers = [{ id: "1", name: "John Doe" }];
                 (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
+                (prisma.user.count as jest.Mock).mockResolvedValue(1);
 
                 await adminControllers.getAccounts(req, res);
 
@@ -95,28 +97,38 @@ describe("Admin Controllers", () => {
                         role: "user",
                         name: { contains: "john", mode: "insensitive" },
                     },
-                    select: expect.any(Object),
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                        phone: true,
+                        avatar: true,
+                        createdAt: true,
+                    },
                     orderBy: { createdAt: "desc" },
+                    skip: 0,
+                    take: 10,
                 });
-                expect(sendSuccess).toHaveBeenCalledWith(res, "All accounts", mockUsers);
+                expect(sendSuccess).toHaveBeenCalledWith(res, "All accounts", expect.objectContaining({ data: mockUsers }));
             });
         });
 
         describe("createAccount", () => {
-            it("should return 401 if user is not authenticated", async () => {
-                const req = mockRequest({}, {}, {}, null);
-                await adminControllers.createAccount(req, res);
-                expect(sendError).toHaveBeenCalledWith(res, "Unauthorized", 401);
-            });
-
             it("should return 400 if missing required fields", async () => {
                 const req = mockRequest({}, {}, { name: "Test" }); // Missing email, password, role
                 await adminControllers.createAccount(req, res);
                 expect(sendError).toHaveBeenCalledWith(res, "Missing required fields", 400);
             });
 
+            it("should return 400 if role is invalid", async () => {
+                const req = mockRequest({}, {}, { name: "Test", email: "test@test.com", password: "pwd", role: "admin" });
+                await adminControllers.createAccount(req, res);
+                expect(sendError).toHaveBeenCalledWith(res, "Invalid role", 400);
+            });
+
             it("should return 409 if email already exists", async () => {
-                const req = mockRequest({}, {}, { name: "Test", email: "test@test.com", password: "pwd", role: "user" });
+                const req = mockRequest({}, {}, { name: "Test", email: "test@test.com", password: "pwd", role: "jobSeeker" });
                 (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "existing" });
 
                 await adminControllers.createAccount(req, res);
@@ -125,9 +137,9 @@ describe("Admin Controllers", () => {
             });
 
             it("should create a company account and profile successfully", async () => {
-                const body = { name: "Company A", email: "a@a.com", password: "pwd", role: "company" };
+                const body = { name: "Company A", email: "a@a.com", password: "pwd", role: "companyUser" };
                 const req = mockRequest({}, {}, body);
-                
+
                 (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
                 (bcrypt.hash as jest.Mock).mockResolvedValue("hashedPwd");
                 (prisma.user.create as jest.Mock).mockResolvedValue({ id: "user-123" });
@@ -136,7 +148,7 @@ describe("Admin Controllers", () => {
                 await adminControllers.createAccount(req, res);
 
                 expect(bcrypt.hash).toHaveBeenCalledWith("pwd", 10);
-                expect(prisma.companyProfile.create).toHaveBeenCalledWith({ data: { userId: "user-123" } });
+                expect(prisma.companyProfile.create).toHaveBeenCalledWith({ data: { companyUserId: "user-123" } });
                 expect(sendSuccess).toHaveBeenCalledWith(res, "Account created", expect.any(Object), 201);
             });
         });

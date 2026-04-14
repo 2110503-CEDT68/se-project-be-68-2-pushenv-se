@@ -111,7 +111,7 @@ describe("getMe", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      message: "User get",
+      message: "User profile",
       data: safeUserProfile,
     });
   });
