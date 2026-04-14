@@ -64,7 +64,7 @@ describe("Auth Controllers", () => {
     });
 
     describe("register", () => {
-        const validUserBody = { name: "John", email: "j@test.com", password: "pwd", role: "user" };
+        const validUserBody = { name: "John", email: "j@test.com", password: "pwd", role: "jobSeeker" };
 
         it("should return 400 if required fields are missing", async () => {
             const req = mockRequest({ name: "John" }); 
@@ -75,7 +75,7 @@ describe("Auth Controllers", () => {
         it("should return 400 if trying to register as a company or admin", async () => {
             const req = mockRequest({ ...validUserBody, role: "company" });
             await authControllers.register(req, res);
-            expect(sendError).toHaveBeenCalledWith(res, "Invalid role. Only 'user' accounts can be registered here.", 400);
+            expect(sendError).toHaveBeenCalledWith(res, "Invalid role", 400);
         });
 
         it("should return 409 if email is already in use", async () => {
@@ -98,7 +98,7 @@ describe("Auth Controllers", () => {
 
             expect(bcrypt.hash).toHaveBeenCalledWith("pwd", 10);
             expect(prisma.user.create).toHaveBeenCalledWith({
-                data: { name: "John", email: "j@test.com", passwordHash: "hashed-pwd", role: "user" }
+                data: { name: "John", email: "j@test.com", passwordHash: "hashed-pwd", role: "jobSeeker" }
             });
             expect(jwt.sign).toHaveBeenCalledWith(
                 { id: "user-1", role: "user" },
@@ -152,7 +152,8 @@ describe("Auth Controllers", () => {
 
             expect(jwt.sign).toHaveBeenCalledWith(
                 { id: "user-1", role: "user" },
-                "super-secret-test-key"
+                "super-secret-test-key",
+                { expiresIn: "7d" }
             );
             expect(sendSuccess).toHaveBeenCalledWith(res, "Login successful", { token: "mock-login-token" });
         });
