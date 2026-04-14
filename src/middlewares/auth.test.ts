@@ -31,7 +31,7 @@ describe("requireAuth", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("calls next() and attaches user when token is valid", () => {
-    const payload = { id: "user-1", role: "user" };
+    const payload = { id: "user-1", role: "jobSeeker" };
     (jwt.verify as jest.Mock).mockReturnValueOnce(payload);
 
     const req = makeReq();
@@ -96,22 +96,22 @@ describe("requireRole", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("calls next() when user role is in the allowed list", () => {
-    const req = makeReq({ user: { id: "u1", role: "user" } });
+    const req = makeReq({ user: { id: "u1", role: "jobSeeker" } });
     const res = makeRes();
     const next = makeNext();
 
-    requireRole(["user"])(req, res, next);
+    requireRole(["jobSeeker"])(req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
   });
 
   it("returns 403 when user role is not in the allowed list", () => {
-    const req = makeReq({ user: { id: "c1", role: "company" } });
+    const req = makeReq({ user: { id: "c1", role: "companyUser" } });
     const res = makeRes();
     const next = makeNext();
 
-    requireRole(["user"])(req, res, next);
+    requireRole(["jobSeeker"])(req, res, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
@@ -121,11 +121,11 @@ describe("requireRole", () => {
   });
 
   it("returns 403 when admin tries to access user-only route", () => {
-    const req = makeReq({ user: { id: "a1", role: "admin" } });
+    const req = makeReq({ user: { id: "a1", role: "systemAdmin" } });
     const res = makeRes();
     const next = makeNext();
 
-    requireRole(["user"])(req, res, next);
+    requireRole(["jobSeeker"])(req, res, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
@@ -136,7 +136,7 @@ describe("requireRole", () => {
     const res = makeRes();
     const next = makeNext();
 
-    requireRole(["user"])(req, res, next);
+    requireRole(["jobSeeker"])(req, res, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
@@ -146,11 +146,11 @@ describe("requireRole", () => {
   });
 
   it("accepts multiple allowed roles", () => {
-    const req = makeReq({ user: { id: "a1", role: "admin" } });
+    const req = makeReq({ user: { id: "a1", role: "systemAdmin" } });
     const res = makeRes();
     const next = makeNext();
 
-    requireRole(["user", "admin"])(req, res, next);
+    requireRole(["jobSeeker", "systemAdmin"])(req, res, next);
 
     expect(next).toHaveBeenCalled();
   });

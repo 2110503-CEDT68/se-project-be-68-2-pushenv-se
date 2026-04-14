@@ -1,12 +1,12 @@
 import { Response } from "express";
 import fs from "node:fs/promises";
 import type { Express } from "express";
-import type { AuthenticatedRequest } from "../middlewares/auth.js";
-import type prismaType from "../utils/prisma.js";
+import type { AuthenticatedRequest } from "../../middlewares/auth.js";
+import type prismaType from "../../utils/prisma.js";
 import type {
   getMe as GetMeType,
   updateMe as UpdateMeType,
-} from "../controllers/user.controller.js";
+} from "../user.controller.js";
 
 jest.mock("node:fs/promises", () => ({
   __esModule: true,
@@ -21,7 +21,7 @@ jest.mock("uuid", () => ({
   v4: jest.fn(() => "generated-avatar-id"),
 }));
 
-jest.mock("../utils/prisma.js", () => ({
+jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
   default: {
     user: {
@@ -31,8 +31,8 @@ jest.mock("../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../utils/prisma.js").default as typeof prismaType;
-const { getMe, updateMe } = require("../controllers/user.controller") as {
+const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const { getMe, updateMe } = require("../user.controller.js") as {
   getMe: typeof GetMeType;
   updateMe: typeof UpdateMeType;
 };

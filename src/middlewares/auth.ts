@@ -5,7 +5,7 @@ import { sendError } from "../utils/http.js";
 
 type JwtPayload = {
   id: string;
-  role: "user" | "company" | "admin";
+  role: "jobSeeker" | "companyUser" | "systemAdmin";
 };
 
 export type AuthenticatedRequest = Request & {
