@@ -16,7 +16,7 @@ import {
 
 export const adminRouter = Router();
 
-adminRouter.use(requireAuth, requireRole(["admin"]));
+adminRouter.use(requireAuth, requireRole(["systemAdmin"]));
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
 adminRouter.get("/accounts",        getAccounts);       // US1-7 (with ?name & ?role filter)

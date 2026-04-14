@@ -14,7 +14,7 @@ import {
 export const companyRouter = Router();
 
 // Apply auth to ALL routes in this router once — no need to repeat per route
-companyRouter.use(requireAuth, requireRole(["company"]));
+companyRouter.use(requireAuth, requireRole(["companyUser"]));
 
 companyRouter.get("/profile",          getProfile);
 companyRouter.put("/profile",          updateProfile);

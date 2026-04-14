@@ -17,6 +17,6 @@ eventsRouter.get("/:id/companies", getEventCompanies);
 eventsRouter.post(
   "/:id/register",
   requireAuth,
-  requireRole(["user"]),
+  requireRole(["jobSeeker"]),
   registerForEvent,
 );
