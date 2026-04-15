@@ -5,6 +5,8 @@ import {
     createAccount,
     updateAccount,
     deleteAccount,
+    getCompanies,
+    updateCompany,
     getEvents,
     createEvent,
     updateEvent,
@@ -23,6 +25,10 @@ adminRouter.get("/accounts",        getAccounts);       // US1-7 (with ?name & ?
 adminRouter.post("/accounts",       createAccount);     // US1-8
 adminRouter.put("/accounts/:id",    updateAccount);     // US1-9 (incl. password reset)
 adminRouter.delete("/accounts/:id", deleteAccount);     // US1-10
+
+// ── Companies ─────────────────────────────────────────────────────────────────
+adminRouter.get("/companies",        getCompanies);
+adminRouter.put("/companies/:id",    updateCompany);
 
 // ── Events ────────────────────────────────────────────────────────────────────
 adminRouter.get("/events",                              getEvents);             // US2-4 (with ?name & ?date filter)
