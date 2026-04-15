@@ -21,16 +21,26 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
   try {
     const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 20));
+    const search = req.query["search"] as string;
     const skip  = (page - 1) * limit;
+
+    const where: any = { isPublished: true };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { location: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
     const [events, total] = await Promise.all([
       prisma.event.findMany({
-        where: { isPublished: true },
+        where,
         orderBy: { startDate: "asc" },
         skip,
         take: limit,
       }),
-      prisma.event.count({ where: { isPublished: true } }),
+      prisma.event.count({ where }),
     ]);
 
     return sendSuccess(res, "Published events", { events, total, page, limit });
