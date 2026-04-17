@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import {
   getPublishedEvents,
+  getEventById,
   getEventCompanies,
   getMyEventRegistrationStatus,
   registerForEvent,
@@ -12,6 +13,7 @@ export const eventsRouter = Router();
 
 // Public routes — no auth needed
 eventsRouter.get("/", getPublishedEvents);
+eventsRouter.get("/:id", getEventById);
 eventsRouter.get("/:id/companies", getEventCompanies);
 eventsRouter.get(
   "/:id/registration-status",

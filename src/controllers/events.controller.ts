@@ -46,38 +46,29 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
     return sendSuccess(res, "Published events", { events, total, page, limit });
   } catch (err: any) {
     console.error("Database Error (Events):", err.message || err);
+    return sendError(res, "Server error", 500);
+  }
+};
 
-    // If it's a database connection error, return mock data for development
-    if (process.env.NODE_ENV === "development" || true) { // Always true for now to make it work
-      const mockEvents = [
-        { id: "1", name: "Green Tech Summit 2026", description: "Exploring the future of renewable energy and sustainable technology.", location: "Bangkok Convention Center", startDate: "2026-04-30T09:00:00Z", endDate: "2026-04-30T17:00:00Z", banner: "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?q=80&w=400", isPublished: true },
-        { id: "2", name: "Ocean Conservation Workshop", description: "Hands-on workshop on protecting marine life and coastal ecosystems.", location: "Phuket Marine Science Center", startDate: "2026-05-05T10:00:00Z", endDate: "2026-05-05T15:00:00Z", banner: "https://images.unsplash.com/photo-1544551763-47a18411c976?q=80&w=400", isPublished: true },
-        { id: "3", name: "Urban Gardening Class", description: "Learn how to grow your own food in limited city spaces.", location: "Naresuan University", startDate: "2026-04-20T14:00:00Z", endDate: "2026-04-20T16:00:00Z", banner: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?q=80&w=400", isPublished: true },
-        { id: "4", name: "Sustainable Fashion Fair", description: "Showcase of eco-friendly apparel and ethical manufacturing.", location: "CentralWorld, Bangkok", startDate: "2026-06-12T10:00:00Z", endDate: "2026-06-14T20:00:00Z", banner: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=400", isPublished: true },
-        { id: "5", name: "Wildlife Photography Walk", description: "Capture the beauty of local fauna with expert guidance.", location: "Khao Yai National Park", startDate: "2026-05-15T06:00:00Z", endDate: "2026-05-15T10:00:00Z", banner: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?q=80&w=400", isPublished: true },
-      ];
+// GET /events/:id — public, specific event details
+export const getEventById = async (req: Request, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
 
-      const search = req.query["search"] as string;
-      const filtered = search 
-        ? mockEvents.filter(e => 
-            e.name.toLowerCase().includes(search.toLowerCase()) || 
-            e.description.toLowerCase().includes(search.toLowerCase()) ||
-            e.location.toLowerCase().includes(search.toLowerCase())
-          )
-        : mockEvents;
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { registrations: true, companies: true }
+        }
+      }
+    });
 
-      const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 20));
-      const paged = filtered.slice((page - 1) * limit, page * limit);
-
-      return sendSuccess(res, "Published events (MOCK)", { 
-        events: paged, 
-        total: filtered.length, 
-        page, 
-        limit 
-      });
-    }
-
+    if (!event) return sendError(res, "Event not found", 404);
+    
+    return sendSuccess(res, "Event details", event);
+  } catch (err: any) {
+    console.error("Database Error (Event Detail):", err.message || err);
     return sendError(res, "Server error", 500);
   }
 };
