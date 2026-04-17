@@ -72,3 +72,73 @@ export const deleteMe = async (req: AuthenticatedRequest, res: Response) => {
     return sendError(res, "Server error", 500);
   }
 };
+
+// GET /users/me/registrations
+export const getRegistrations = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const skip = (page - 1) * limit;
+
+    const where: any = { jobSeekerId: req.user!.id };
+
+    const [registrations, total] = await Promise.all([
+      prisma.eventRegistration.findMany({
+        where,
+        include: {
+          event: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              location: true,
+              startDate: true,
+              endDate: true,
+              banner: true,
+              isPublished: true,
+            },
+          },
+        },
+        orderBy: { registeredAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.eventRegistration.count({ where }),
+    ]);
+
+    return sendSuccess(res, "User registrations", {
+      data: registrations,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// DELETE /users/me/registrations/:eventId
+export const deleteRegistration = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const eventId = req.params["eventId"] as string;
+    const jobSeekerId = req.user!.id;
+
+    const existing = await prisma.eventRegistration.findFirst({
+      where: { eventId, jobSeekerId } as any,
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return sendError(res, "Registration not found", 404);
+    }
+
+    await prisma.eventRegistration.delete({
+      where: { id: existing.id },
+    });
+
+    return sendSuccess(res, "Registration deleted", null);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};

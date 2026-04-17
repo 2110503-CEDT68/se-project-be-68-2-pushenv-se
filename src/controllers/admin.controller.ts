@@ -376,3 +376,14 @@ export const removeCompanyFromEvent = async (req: AuthenticatedRequest, res: Res
     return sendError(res, "Server error", 500);
   }
 };
+
+// GET /admin/events/:id/registrations
+export const getEventRegisteredUsers = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+    const users = await prisma.eventRegistration.findMany({ where: { eventId: id }, include: { user: { select: { id: true, name: true, email: true } } } });
+    return sendSuccess(res, "Event registered users", users);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
