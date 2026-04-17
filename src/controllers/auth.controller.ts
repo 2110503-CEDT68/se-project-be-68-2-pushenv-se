@@ -142,3 +142,16 @@ export const login = async (req: Request, res: Response) => {
     return sendError(res, "Server error", 500);
   }
 };
+
+// POST /auth/logout
+export const logout = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    res.cookie("token","none",{
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
+    });
+    return sendSuccess(res, "Logout successful", {}, 200);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
