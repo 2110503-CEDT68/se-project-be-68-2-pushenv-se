@@ -14,6 +14,7 @@ import {
     publishEvent,
     addCompanyToEvent,
     removeCompanyFromEvent,
+    getEventRegisteredUsers
 } from "../../controllers/admin.controller.js";
 
 export const adminRouter = Router();
@@ -38,3 +39,4 @@ adminRouter.delete("/events/:id",                       deleteEvent);           
 adminRouter.patch("/events/:id/publish",                publishEvent);          // US2-8
 adminRouter.post("/events/:id/companies",               addCompanyToEvent);     // US2-5 (link company)
 adminRouter.delete("/events/:id/companies/:companyId",  removeCompanyFromEvent); // US2-5 (unlink company)
+adminRouter.get("/events/:id/registrations",            getEventRegisteredUsers);   // New Requirement
