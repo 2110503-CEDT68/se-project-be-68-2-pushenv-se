@@ -105,6 +105,7 @@ describe("Admin Controllers", () => {
                         phone: true,
                         avatar: true,
                         createdAt: true,
+                        updatedAt: true
                     },
                     orderBy: { createdAt: "desc" },
                     skip: 0,

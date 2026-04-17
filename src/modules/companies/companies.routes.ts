@@ -10,4 +10,4 @@ export const companiesRouter = Router();
 
 companiesRouter.get("/", getCompanies);
 companiesRouter.get("/:companyId", getCompany);
-companiesRouter.get("/:companyId/Jobs", getJobsInCompany);
+companiesRouter.get("/:companyId/jobs", getJobsInCompany);
