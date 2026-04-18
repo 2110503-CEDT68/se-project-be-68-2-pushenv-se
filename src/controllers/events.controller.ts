@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { Prisma } from "@prisma/client";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
@@ -24,7 +25,7 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
     const search = req.query["search"] as string;
     const skip  = (page - 1) * limit;
 
-    const where: any = { isPublished: true };
+    const where: Prisma.EventWhereInput = { isPublished: true };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -65,7 +66,8 @@ export const getEventById = async (req: Request, res: Response) => {
     });
 
     if (!event) return sendError(res, "Event not found", 404);
-    
+    if (!event.isPublished) return sendError(res, "Event not found", 404);
+
     return sendSuccess(res, "Event details", event);
   } catch (err: any) {
     console.error("Database Error (Event Detail):", err.message || err);
