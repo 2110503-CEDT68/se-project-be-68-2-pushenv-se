@@ -3,10 +3,12 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import path from "node:path";
+import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { notFoundHandler } from "./middlewares/not-found.js";
 import { apiRouter } from "./routes/index.js";
+import { swaggerSpec } from "./utils/swagger.js";
 
 export function createApp() {
   const app = express();
@@ -23,6 +25,7 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   app.use("/api/v1", apiRouter);
+  app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use(notFoundHandler);
   app.use(errorHandler);
 

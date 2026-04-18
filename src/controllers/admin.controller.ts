@@ -109,9 +109,9 @@ export const updateAccount = async (req: AuthenticatedRequest, res: Response) =>
       passwordHash?: string;
     } = {};
 
-    if (name !== undefined)     data.name  = name;
-    if (email !== undefined)    data.email = email;
-    if (phone !== undefined)    data.phone = phone;
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (phone !== undefined) data.phone = phone;
     if (password !== undefined) data.passwordHash = await bcrypt.hash(password, 10);
 
     const updated = await prisma.user.update({
@@ -149,10 +149,10 @@ export const deleteAccount = async (req: AuthenticatedRequest, res: Response) =>
 // GET /admin/companies?name=foo&page=1&limit=10
 export const getCompanies = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const name  = req.query["name"] as string | undefined;
-    const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
+    const name = req.query["name"] as string | undefined;
+    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     const where = name
       ? { companyUser: { name: { contains: name, mode: "insensitive" as const } } }
@@ -195,7 +195,7 @@ export const updateCompany = async (req: AuthenticatedRequest, res: Response) =>
 
     const data: { description?: string; website?: string } = {};
     if (description !== undefined) data.description = description;
-    if (website !== undefined)     data.website     = website;
+    if (website !== undefined) data.website = website;
 
     const updated = await prisma.companyProfile.update({ where: { id }, data });
     return sendSuccess(res, "Company updated", updated);
@@ -214,11 +214,11 @@ async function findEvent(id: string) {
 // GET /admin/events?name=fair&date=2025-11-01&page=1&limit=10
 export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const name  = req.query["name"] as string | undefined;
-    const date  = req.query["date"] as string | undefined;
-    const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
+    const name = req.query["name"] as string | undefined;
+    const date = req.query["date"] as string | undefined;
+    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     const where = {
       ...(name ? { name: { contains: name, mode: "insensitive" as const } } : {}),
@@ -285,12 +285,12 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
       startDate?: Date; endDate?: Date; banner?: string;
     } = {};
 
-    if (name !== undefined)        data.name        = name;
+    if (name !== undefined) data.name = name;
     if (description !== undefined) data.description = description;
-    if (location !== undefined)    data.location    = location;
-    if (startDate !== undefined)   data.startDate   = new Date(startDate);
-    if (endDate !== undefined)     data.endDate     = new Date(endDate);
-    if (banner !== undefined)      data.banner      = banner;
+    if (location !== undefined) data.location = location;
+    if (startDate !== undefined) data.startDate = new Date(startDate);
+    if (endDate !== undefined) data.endDate = new Date(endDate);
+    if (banner !== undefined) data.banner = banner;
 
     const updated = await prisma.event.update({ where: { id }, data });
     return sendSuccess(res, "Event updated", updated);
@@ -360,7 +360,7 @@ export const addCompanyToEvent = async (req: AuthenticatedRequest, res: Response
 // DELETE /admin/events/:id/companies/:companyId
 export const removeCompanyFromEvent = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const eventId   = req.params["id"] as string;
+    const eventId = req.params["id"] as string;
     const companyId = req.params["companyId"] as string;
 
     const link = await prisma.eventCompany.findUnique({
@@ -381,7 +381,7 @@ export const removeCompanyFromEvent = async (req: AuthenticatedRequest, res: Res
 export const getEventRegisteredUsers = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = req.params["id"] as string;
-    const users = await prisma.eventRegistration.findMany({ where: { eventId: id }, include: { user: { select: { id: true, name: true, email: true } } } });
+    const users = await prisma.eventRegistration.findMany({ where: { eventId: id }, include: { jobSeeker: { select: { id: true, name: true, email: true } } } });
     return sendSuccess(res, "Event registered users", users);
   } catch {
     return sendError(res, "Server error", 500);
