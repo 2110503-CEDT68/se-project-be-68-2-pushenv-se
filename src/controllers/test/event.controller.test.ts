@@ -3,7 +3,9 @@ import type { AuthenticatedRequest } from "../../middlewares/auth.js";
 import type prismaType from "../../utils/prisma.js";
 import type {
   getPublishedEvents as GetPublishedEventsType,
+  getEventById as GetEventByIdType,
   getEventCompanies as GetEventCompaniesType,
+  getMyEventRegistrationStatus as GetMyEventRegistrationStatusType,
   registerForEvent as RegisterForEventType,
 } from "../events.controller.js";
 
@@ -18,17 +20,24 @@ jest.mock("../../utils/prisma.js", () => ({
     },
     eventRegistration: {
       create: jest.fn(),
+      findUnique: jest.fn(),
     },
   },
 }));
 
 // ── Load mocked modules via require() ─────────────────────────────────────────
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
-const { getPublishedEvents, getEventCompanies, registerForEvent } = require(
-  "../events.controller.js",
-) as {
+const {
+  getPublishedEvents,
+  getEventById,
+  getEventCompanies,
+  getMyEventRegistrationStatus,
+  registerForEvent,
+} = require("../events.controller.js") as {
   getPublishedEvents: typeof GetPublishedEventsType;
+  getEventById: typeof GetEventByIdType;
   getEventCompanies: typeof GetEventCompaniesType;
+  getMyEventRegistrationStatus: typeof GetMyEventRegistrationStatusType;
   registerForEvent: typeof RegisterForEventType;
 };
 
@@ -45,6 +54,10 @@ const mockCount = prisma.event.count as jest.MockedFunction<
 const mockRegistrationCreate =
   prisma.eventRegistration.create as jest.MockedFunction<
     typeof prisma.eventRegistration.create
+  >;
+const mockRegistrationFindUnique =
+  prisma.eventRegistration.findUnique as jest.MockedFunction<
+    typeof prisma.eventRegistration.findUnique
   >;
 
 // ── Shared test helpers ───────────────────────────────────────────────────────
@@ -88,6 +101,11 @@ const fakeCompany = {
     website: "https://example.com",
     user: { name: "Tech Corp", email: "hr@techcorp.com" },
   },
+};
+
+const fakeEventWithCount = {
+  ...fakeEvent,
+  _count: { registrations: 5, companies: 3 },
 };
 
 const fakeRegistration = {
@@ -164,6 +182,48 @@ describe("getPublishedEvents", () => {
     );
   });
 
+  it("filters by search term across name, description, and location", async () => {
+    mockFindMany.mockResolvedValueOnce([fakeEvent] as Awaited<
+      ReturnType<typeof prisma.event.findMany>
+    >);
+    mockCount.mockResolvedValueOnce(1);
+
+    const req = makeReq({ query: { search: "Bangkok" } } as any) as unknown as Request;
+    const res = makeRes();
+
+    await getPublishedEvents(req, res);
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isPublished: true,
+          OR: [
+            { name: { contains: "Bangkok", mode: "insensitive" } },
+            { description: { contains: "Bangkok", mode: "insensitive" } },
+            { location: { contains: "Bangkok", mode: "insensitive" } },
+          ],
+        }),
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("truncates search term to 100 characters", async () => {
+    mockFindMany.mockResolvedValueOnce([] as Awaited<
+      ReturnType<typeof prisma.event.findMany>
+    >);
+    mockCount.mockResolvedValueOnce(0);
+
+    const longSearch = "a".repeat(200);
+    const req = makeReq({ query: { search: longSearch } } as any) as unknown as Request;
+    const res = makeRes();
+
+    await getPublishedEvents(req, res);
+
+    const calledWith = (mockFindMany.mock.calls[0]![0] as any).where.OR[0].name.contains as string;
+    expect(calledWith).toHaveLength(100);
+  });
+
   it("returns 500 when prisma throws an unexpected error", async () => {
     mockFindMany.mockRejectedValueOnce(new Error("DB connection lost"));
 
@@ -171,6 +231,179 @@ describe("getPublishedEvents", () => {
     const res = makeRes();
 
     await getPublishedEvents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Server error" }),
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe("getEventById", () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  it("returns 200 with event data including _count for a published event", async () => {
+    mockFindUnique.mockResolvedValueOnce(fakeEventWithCount as Awaited<
+      ReturnType<typeof prisma.event.findUnique>
+    >);
+
+    const req = makeReq({ params: { id: "event-abc" } }) as unknown as Request;
+    const res = makeRes();
+
+    await getEventById(req, res);
+
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { id: "event-abc" },
+      include: {
+        _count: {
+          select: { registrations: true, companies: true },
+        },
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Event details",
+      data: fakeEventWithCount,
+    });
+  });
+
+  it("returns 404 when event is found but not published", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      ...fakeEventWithCount,
+      isPublished: false,
+    } as Awaited<ReturnType<typeof prisma.event.findUnique>>);
+
+    const req = makeReq({ params: { id: "event-abc" } }) as unknown as Request;
+    const res = makeRes();
+
+    await getEventById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Event not found" }),
+    );
+  });
+
+  it("returns 404 when event does not exist", async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+
+    const req = makeReq({ params: { id: "non-existent-id" } }) as unknown as Request;
+    const res = makeRes();
+
+    await getEventById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Event not found" }),
+    );
+  });
+
+  it("returns 500 when prisma throws an unexpected error", async () => {
+    mockFindUnique.mockRejectedValueOnce(new Error("Query timeout"));
+
+    const req = makeReq({ params: { id: "event-abc" } }) as unknown as Request;
+    const res = makeRes();
+
+    await getEventById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Server error" }),
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe("getMyEventRegistrationStatus", () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  it("returns 200 with registered:true when user has a registration", async () => {
+    mockFindUnique.mockResolvedValueOnce(fakeEvent as Awaited<
+      ReturnType<typeof prisma.event.findUnique>
+    >);
+    mockRegistrationFindUnique.mockResolvedValueOnce({ id: "reg-001" } as Awaited<
+      ReturnType<typeof prisma.eventRegistration.findUnique>
+    >);
+
+    const req = makeReq({ params: { id: "event-abc" } });
+    const res = makeRes();
+
+    await getMyEventRegistrationStatus(req, res);
+
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: "event-abc" } });
+    expect(mockRegistrationFindUnique).toHaveBeenCalledWith({
+      where: { eventId_jobSeekerId: { eventId: "event-abc", jobSeekerId: "user-123" } },
+      select: { id: true },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Event registration status",
+      data: { registered: true },
+    });
+  });
+
+  it("returns 200 with registered:false when user has no registration", async () => {
+    mockFindUnique.mockResolvedValueOnce(fakeEvent as Awaited<
+      ReturnType<typeof prisma.event.findUnique>
+    >);
+    mockRegistrationFindUnique.mockResolvedValueOnce(null);
+
+    const req = makeReq({ params: { id: "event-abc" } });
+    const res = makeRes();
+
+    await getMyEventRegistrationStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Event registration status",
+      data: { registered: false },
+    });
+  });
+
+  it("returns 404 when event does not exist", async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+
+    const req = makeReq({ params: { id: "non-existent-id" } });
+    const res = makeRes();
+
+    await getMyEventRegistrationStatus(req, res);
+
+    expect(mockRegistrationFindUnique).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Event not found" }),
+    );
+  });
+
+  it("returns 403 when event exists but is not published", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      ...fakeEvent,
+      isPublished: false,
+    } as Awaited<ReturnType<typeof prisma.event.findUnique>>);
+
+    const req = makeReq({ params: { id: "event-abc" } });
+    const res = makeRes();
+
+    await getMyEventRegistrationStatus(req, res);
+
+    expect(mockRegistrationFindUnique).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, message: "Event not available" }),
+    );
+  });
+
+  it("returns 500 when prisma throws an unexpected error", async () => {
+    mockFindUnique.mockRejectedValueOnce(new Error("DB connection lost"));
+
+    const req = makeReq({ params: { id: "event-abc" } });
+    const res = makeRes();
+
+    await getMyEventRegistrationStatus(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(
