@@ -2,8 +2,9 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import {
   getPublishedEvents,
+  getEventById,
   getEventCompanies,
-  getEvent,
+  getMyEventRegistrationStatus,
   registerForEvent,
 } from "../../controllers/events.controller.js";
 
@@ -93,7 +94,7 @@ eventsRouter.get("/", getPublishedEvents);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-eventsRouter.get("/:id", getEvent);
+eventsRouter.get("/:id", getEventById);
 
 /**
  * @openapi
@@ -136,6 +137,12 @@ eventsRouter.get("/:id", getEvent);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 eventsRouter.get("/:id/companies", getEventCompanies);
+eventsRouter.get(
+  "/:id/registration-status",
+  requireAuth,
+  requireRole(["jobSeeker"]),
+  getMyEventRegistrationStatus,
+);
 
 /**
  * @openapi
