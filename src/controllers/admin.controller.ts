@@ -15,6 +15,7 @@ const safeUserSelect = {
   phone: true,
   avatar: true,
   createdAt: true,
+  updatedAt: true,
 } as const;
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
@@ -143,6 +144,66 @@ export const deleteAccount = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
+// ── Companies ─────────────────────────────────────────────────────────────────
+
+// GET /admin/companies?name=foo&page=1&limit=10
+export const getCompanies = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const name  = req.query["name"] as string | undefined;
+    const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const skip  = (page - 1) * limit;
+
+    const where = name
+      ? { companyUser: { name: { contains: name, mode: "insensitive" as const } } }
+      : {};
+
+    const [companies, total] = await Promise.all([
+      prisma.companyProfile.findMany({
+        where,
+        include: {
+          companyUser: { select: { id: true, name: true, email: true } },
+          _count: { select: { jobs: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.companyProfile.count({ where }),
+    ]);
+
+    return sendSuccess(res, "All companies", {
+      data: companies,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// PUT /admin/companies/:id  (id = companyProfile.id)
+export const updateCompany = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+    const { description, website } = req.body;
+
+    const existing = await prisma.companyProfile.findUnique({ where: { id } });
+    if (!existing) return sendError(res, "Company not found", 404);
+
+    const data: { description?: string; website?: string } = {};
+    if (description !== undefined) data.description = description;
+    if (website !== undefined)     data.website     = website;
+
+    const updated = await prisma.companyProfile.update({ where: { id }, data });
+    return sendSuccess(res, "Company updated", updated);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
 // ── Events ────────────────────────────────────────────────────────────────────
 
 // Shared helper — find event or return null
@@ -150,23 +211,38 @@ async function findEvent(id: string) {
   return prisma.event.findUnique({ where: { id } });
 }
 
-// GET /admin/events?name=fair&date=2025-11-01
+// GET /admin/events?name=fair&date=2025-11-01&page=1&limit=10
 export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const name = req.query["name"] as string | undefined;
-    const date = req.query["date"] as string | undefined;
+    const name  = req.query["name"] as string | undefined;
+    const date  = req.query["date"] as string | undefined;
+    const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const skip  = (page - 1) * limit;
 
-    const events = await prisma.event.findMany({
-      where: {
-        ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
-        ...(date ? { startDate: { equals: new Date(date) } } : {}),
-      },
-      orderBy: { startDate: "asc" },
-      include: {
-        _count: { select: { registrations: true, companies: true } },
-      },
+    const where = {
+      ...(name ? { name: { contains: name, mode: "insensitive" as const } } : {}),
+      ...(date ? { startDate: { equals: new Date(date) } } : {}),
+    };
+
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        orderBy: { startDate: "asc" },
+        include: { _count: { select: { registrations: true, companies: true } } },
+        skip,
+        take: limit,
+      }),
+      prisma.event.count({ where }),
+    ]);
+
+    return sendSuccess(res, "All events", {
+      data: events,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
-    return sendSuccess(res, "All events", events);
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -296,6 +372,17 @@ export const removeCompanyFromEvent = async (req: AuthenticatedRequest, res: Res
       where: { eventId_companyId: { eventId, companyId } },
     });
     return sendSuccess(res, "Company removed from event", null);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// GET /admin/events/:id/registrations
+export const getEventRegisteredUsers = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+    const users = await prisma.eventRegistration.findMany({ where: { eventId: id }, include: { user: { select: { id: true, name: true, email: true } } } });
+    return sendSuccess(res, "Event registered users", users);
   } catch {
     return sendError(res, "Server error", 500);
   }

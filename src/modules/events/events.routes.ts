@@ -8,7 +8,6 @@ import {
   registerForEvent,
 } from "../../controllers/events.controller.js";
 
-
 export const eventsRouter = Router();
 
 // Public routes — no auth needed

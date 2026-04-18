@@ -6,15 +6,15 @@ import { sendSuccess, sendError } from "../utils/http.js";
 
 // Shared select shape for company info inside event responses
 const companySelect = {
-  company: {
-    select: {
-      id: true,
-      description: true,
-      logo: true,
-      website: true,
-      companyUser: { select: { name: true, email: true } },
+    company: {
+        select: {
+            id: true,
+            description: true,
+            logo: true,
+            website: true,
+            companyUser: { select: { name: true, email: true } },
+        },
     },
-  },
 } as const;
 
 // GET /events  — public, paginated
@@ -79,19 +79,19 @@ export const getEventById = async (req: Request, res: Response) => {
 
 // GET /events/:id/companies  — public
 export const getEventCompanies = async (req: Request, res: Response) => {
-  try {
-    const id = req.params["id"] as string;
+    try {
+        const id = req.params["id"] as string;
 
-    const event = await prisma.event.findUnique({
-      where: { id },
-      include: { companies: { select: companySelect } },
-    });
+        const event = await prisma.event.findUnique({
+            where: { id },
+            include: { companies: { select: companySelect } },
+        });
 
-    if (!event) return sendError(res, "Event not found", 404);
-    return sendSuccess(res, "Event companies", event.companies);
-  } catch {
-    return sendError(res, "Server error", 500);
-  }
+        if (!event) return sendError(res, "Event not found", 404);
+        return sendSuccess(res, "Event companies", event.companies);
+    } catch {
+        return sendError(res, "Server error", 500);
+    }
 };
 
 // GET /events/:id/registration-status  — requireAuth + role "jobSeeker"
@@ -121,22 +121,22 @@ export const getMyEventRegistrationStatus = async (req: AuthenticatedRequest, re
 
 // POST /events/:id/register  — requireAuth + role "user"
 export const registerForEvent = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const eventId = req.params["id"] as string;
-    const jobSeekerId  = req.user!.id;
+    try {
+        const eventId = req.params["id"] as string;
+        const jobSeekerId = req.user!.id;
 
-    const event = await prisma.event.findUnique({ where: { id: eventId } });
-    if (!event) return sendError(res, "Event not found", 404);
-    if (!event.isPublished) return sendError(res, "Event not available", 403);
+        const event = await prisma.event.findUnique({ where: { id: eventId } });
+        if (!event) return sendError(res, "Event not found", 404);
+        if (!event.isPublished) return sendError(res, "Event not available", 403);
 
-    const registration = await prisma.eventRegistration.create({
-      data: { eventId, jobSeekerId },
-    });
-    return sendSuccess(res, "Registered for event", registration, 201);
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return sendError(res, "Already registered for this event", 409);
+        const registration = await prisma.eventRegistration.create({
+            data: { eventId, jobSeekerId },
+        });
+        return sendSuccess(res, "Registered for event", registration, 201);
+    } catch (err: any) {
+        if (err?.code === "P2002") {
+            return sendError(res, "Already registered for this event", 409);
+        }
+        return sendError(res, "Server error", 500);
     }
-    return sendError(res, "Server error", 500);
-  }
 };
