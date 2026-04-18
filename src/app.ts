@@ -28,6 +28,6 @@ export function createApp() {
   app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use(notFoundHandler);
   app.use(errorHandler);
-  
+
   return app;
 }
