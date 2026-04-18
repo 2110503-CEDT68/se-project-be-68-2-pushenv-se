@@ -22,7 +22,7 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
   try {
     const page  = Math.max(1, parseInt(req.query["page"]  as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 20));
-    const search = req.query["search"] as string;
+    const search = (req.query["search"] as string | undefined)?.slice(0, 100);
     const skip  = (page - 1) * limit;
 
     const where: Prisma.EventWhereInput = { isPublished: true };
@@ -45,8 +45,9 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
     ]);
 
     return sendSuccess(res, "Published events", { events, total, page, limit });
-  } catch (err: any) {
-    console.error("Database Error (Events):", err.message || err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Database Error (Events):", msg);
     return sendError(res, "Server error", 500);
   }
 };
@@ -69,8 +70,9 @@ export const getEventById = async (req: Request, res: Response) => {
     if (!event.isPublished) return sendError(res, "Event not found", 404);
 
     return sendSuccess(res, "Event details", event);
-  } catch (err: any) {
-    console.error("Database Error (Event Detail):", err.message || err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Database Error (Event Detail):", msg);
     return sendError(res, "Server error", 500);
   }
 };
@@ -110,7 +112,9 @@ export const getMyEventRegistrationStatus = async (req: AuthenticatedRequest, re
     return sendSuccess(res, "Event registration status", {
       registered: Boolean(registration),
     });
-  } catch {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Database Error (Registration Status):", msg);
     return sendError(res, "Server error", 500);
   }
 };
