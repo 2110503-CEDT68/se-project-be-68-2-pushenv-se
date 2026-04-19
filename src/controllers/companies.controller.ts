@@ -49,7 +49,7 @@ export const getCompanies = async (req: Request, res: Response) => {
       prisma.companyProfile.count({ where }),
     ]);
 
-    sendSuccess(res, "Companies", {
+    return sendSuccess(res, "Companies", {
       data: companies,
       total,
       page,
@@ -57,7 +57,7 @@ export const getCompanies = async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
     });
   } catch {
-    sendError(res, "Server error", 500);
+    return sendError(res, "Server error", 500);
   }
 };
 
@@ -88,13 +88,13 @@ export const getCompany = async (req: Request, res: Response) => {
 
     if (!company) return sendError(res, "Company not found", 404);
 
-    sendSuccess(res, "Company", company);
+    return sendSuccess(res, "Company", company);
   } catch {
-    sendError(res, "Server error", 500);
+    return sendError(res, "Server error", 500);
   }
 };
 
-// GET /companies/:companyId/Jobs
+// GET /companies/:companyId/jobs
 export const getJobsInCompany = async (req: Request, res: Response) => {
   try {
     const companyId = req.params["companyId"] as string;
@@ -114,9 +114,8 @@ export const getJobsInCompany = async (req: Request, res: Response) => {
         createdAt: "desc",
       },
     });
-
-    sendSuccess(res, "Jobs", jobs);
+    return sendSuccess(res, "Jobs", jobs);
   } catch (error) {
-    sendError(res, "Server error", 500);
+    return sendError(res, "Server error", 500);
   }
 };
