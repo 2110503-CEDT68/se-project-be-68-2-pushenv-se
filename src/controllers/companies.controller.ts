@@ -6,6 +6,11 @@ import { sendSuccess, sendError } from "../utils/http.js";
 export const getCompanies = async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
+    const sort = req.query.sort as string | undefined;
+
+    const skip = (page - 1) * limit;
 
     const where: any = {};
 
@@ -18,21 +23,39 @@ export const getCompanies = async (req: Request, res: Response) => {
       };
     }
 
-    const companies = await prisma.companyProfile.findMany({
-      where,
-      include: {
-        companyUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
+    let orderBy: any = { updatedAt: "desc" };
+    if (sort === "oldest") orderBy = { updatedAt: "asc" };
+    else if (sort === "a-z") orderBy = { companyUser: { name: "asc" } };
+    else if (sort === "z-a") orderBy = { companyUser: { name: "desc" } };
+
+    const [companies, total] = await Promise.all([
+      prisma.companyProfile.findMany({
+        where,
+        include: {
+          companyUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+              phone: true,
+            },
           },
         },
-      },
-    });
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.companyProfile.count({ where }),
+    ]);
 
-    return sendSuccess(res, "Companies", companies);
+    return sendSuccess(res, "Companies", {
+      data: companies,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -52,6 +75,12 @@ export const getCompany = async (req: Request, res: Response) => {
             name: true,
             email: true,
             avatar: true,
+            phone: true,
+          },
+        },
+        eventLinks: {
+          include: {
+            event: true,
           },
         },
       },
@@ -85,7 +114,6 @@ export const getJobsInCompany = async (req: Request, res: Response) => {
         createdAt: "desc",
       },
     });
-
     return sendSuccess(res, "Jobs", jobs);
   } catch (error) {
     return sendError(res, "Server error", 500);
