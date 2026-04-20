@@ -5,8 +5,12 @@ import {
     getCompanies, updateCompany,
     getEvents, createEvent, updateEvent, deleteEvent,
     publishEvent, addCompanyToEvent, removeCompanyFromEvent,
-    getEventRegisteredUsers
+    getEventRegisteredUsers,
 } from "../../controllers/admin.controller.js";
+import {
+    adminGetCompanyJobs, adminGetJob, adminCreateJob,
+    adminUpdateJob, adminCloseJob, adminOpenJob, adminDeleteJob,
+} from "../../controllers/jobs.controller.js";
 
 export const adminRouter = Router();
 
@@ -715,3 +719,226 @@ adminRouter.delete("/events/:id/companies/:companyId", removeCompanyFromEvent);
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/events/:id/registrations", getEventRegisteredUsers);
+
+// ── Jobs ──────────────────────────────────────────────────────────────────────
+// Previously scattered across jobs.routes.ts with requireAuth + requireRole
+// repeated on each of the 7 routes. Moved here so the router-level middleware
+// (requireAuth + requireRole(["systemAdmin"])) applied at line 1 covers them all.
+
+/**
+ * @openapi
+ * /admin/companies/{companyId}/jobs:
+ *   get:
+ *     summary: Get all jobs for a company including closed (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: All jobs (open and closed)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Company not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+adminRouter.get("/companies/:companyId/jobs", adminGetCompanyJobs);
+
+/**
+ * @openapi
+ * /admin/jobs/{id}:
+ *   get:
+ *     summary: Get any job detail including closed (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobId'
+ *     responses:
+ *       200:
+ *         description: Full job detail including company info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+adminRouter.get("/jobs/:id", adminGetJob);
+
+/**
+ * @openapi
+ * /admin/companies/{companyId}/jobs:
+ *   post:
+ *     summary: Create a job listing under any company (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/JobInput'
+ *     responses:
+ *       201:
+ *         description: Job listing created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Company not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+adminRouter.post("/companies/:companyId/jobs", adminCreateJob);
+
+/**
+ * @openapi
+ * /admin/jobs/{id}:
+ *   put:
+ *     summary: Update any job listing (admin)
+ *     description: Only provided fields are updated.
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobId'
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/JobInput'
+ *     responses:
+ *       200:
+ *         description: Job updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+adminRouter.put("/jobs/:id", adminUpdateJob);
+
+/**
+ * @openapi
+ * /admin/jobs/{id}/close:
+ *   patch:
+ *     summary: Close any job listing (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobId'
+ *     responses:
+ *       200:
+ *         description: Job closed — isClosed set to true
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+adminRouter.patch("/jobs/:id/close", adminCloseJob);
+
+/**
+ * @openapi
+ * /admin/jobs/{id}/open:
+ *   patch:
+ *     summary: Re-open any job listing (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobId'
+ *     responses:
+ *       200:
+ *         description: Job opened — isClosed set to false
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+adminRouter.patch("/jobs/:id/open", adminOpenJob);
+
+/**
+ * @openapi
+ * /admin/jobs/{id}:
+ *   delete:
+ *     summary: Delete any job listing (admin)
+ *     tags: [Admin - Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/JobId'
+ *     responses:
+ *       200:
+ *         description: Job deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: Job deleted
+ *               data: null
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+adminRouter.delete("/jobs/:id", adminDeleteJob);

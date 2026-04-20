@@ -17,7 +17,7 @@ const jobWithCompanyInclude = {
   },
 } as const;
 
-// Helper: set isClosed on a job — used by both admin close and open
+// Helper: set isClosed on any job — shared by adminCloseJob and adminOpenJob
 async function setJobStatus(
   req: AuthenticatedRequest,
   res: Response,
@@ -39,25 +39,8 @@ async function setJobStatus(
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
-// GET /companies/:companyId/jobs  — public, open listings only
-export const getCompanyJobs = async (req: Request, res: Response) => {
-  try {
-    const companyId = req.params["companyId"] as string;
-    const company = await prisma.companyProfile.findUnique({ where: { id: companyId } });
-    if (!company) return sendError(res, "Company not found", 404);
-
-    const jobs = await prisma.jobListing.findMany({
-      where: { companyId, isClosed: false },
-      orderBy: { createdAt: "desc" },
-    });
-    return sendSuccess(res, "Company jobs", jobs);
-  } catch {
-    return sendError(res, "Server error", 500);
-  }
-};
-
-// GET /jobs/:id  — public
-// Admin sees closed jobs; public/user only sees open ones
+// GET /jobs/:id
+// Role-aware: admin sees closed jobs; everyone else gets 404 on closed jobs.
 export const getJob = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = req.params["id"] as string;
@@ -77,13 +60,18 @@ export const getJob = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
+// ── Admin — moved from jobs.routes.ts to admin.routes.ts ─────────────────────
 
-// GET /admin/companies/:companyId/jobs  — admin, all jobs (open + closed)
-export const adminGetCompanyJobs = async (req: AuthenticatedRequest, res: Response) => {
+// GET /admin/companies/:companyId/jobs
+export const adminGetCompanyJobs = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     const companyId = req.params["companyId"] as string;
-    const company = await prisma.companyProfile.findUnique({ where: { id: companyId } });
+    const company = await prisma.companyProfile.findUnique({
+      where: { id: companyId },
+    });
     if (!company) return sendError(res, "Company not found", 404);
 
     const jobs = await prisma.jobListing.findMany({
@@ -96,10 +84,8 @@ export const adminGetCompanyJobs = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-// GET /admin/jobs/:id  — admin, full detail including closed
-// Consolidated with public getJob above — kept separate so admin
-// route stays explicit and doesn't require auth middleware on /jobs/:id
-export const adminGetCompanyJob = async (req: AuthenticatedRequest, res: Response) => {
+// GET /admin/jobs/:id
+export const adminGetJob = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = req.params["id"] as string;
     const job = await prisma.jobListing.findUnique({
@@ -114,22 +100,44 @@ export const adminGetCompanyJob = async (req: AuthenticatedRequest, res: Respons
 };
 
 // POST /admin/companies/:companyId/jobs
-export const adminCreateCompanyJob = async (req: AuthenticatedRequest, res: Response) => {
+export const adminCreateJob = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     const companyId = req.params["companyId"] as string;
-    const company = await prisma.companyProfile.findUnique({ where: { id: companyId } });
+    const company = await prisma.companyProfile.findUnique({
+      where: { id: companyId },
+    });
     if (!company) return sendError(res, "Company not found", 404);
 
-    const { title, type, location, description,
-            requirements, qualifications, salary, attachment } = req.body;
+    const {
+      title,
+      type,
+      location,
+      description,
+      requirements,
+      qualifications,
+      salary,
+      attachment,
+    } = req.body;
 
     if (!title || !type || !location || !description) {
       return sendError(res, "Missing required fields", 400);
     }
 
     const job = await prisma.jobListing.create({
-      data: { companyId, title, type, location, description,
-              requirements, qualifications, salary, attachment },
+      data: {
+        companyId,
+        title,
+        type,
+        location,
+        description,
+        requirements,
+        qualifications,
+        salary,
+        attachment,
+      },
     });
     return sendSuccess(res, "Job created", job, 201);
   } catch {
@@ -138,28 +146,45 @@ export const adminCreateCompanyJob = async (req: AuthenticatedRequest, res: Resp
 };
 
 // PUT /admin/jobs/:id
-export const adminUpdateJob = async (req: AuthenticatedRequest, res: Response) => {
+export const adminUpdateJob = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     const id = req.params["id"] as string;
     const existing = await prisma.jobListing.findUnique({ where: { id } });
     if (!existing) return sendError(res, "Job not found", 404);
 
-    const { title, type, location, description,
-            requirements, qualifications, salary, attachment } = req.body;
+    const {
+      title,
+      type,
+      location,
+      description,
+      requirements,
+      qualifications,
+      salary,
+      attachment,
+    } = req.body;
 
     const data: {
-      title?: string; type?: any; location?: string; description?: string;
-      requirements?: string; qualifications?: string; salary?: string; attachment?: string;
+      title?: string;
+      type?: any;
+      location?: string;
+      description?: string;
+      requirements?: string;
+      qualifications?: string;
+      salary?: string;
+      attachment?: string;
     } = {};
 
-    if (title !== undefined)          data.title          = title;
-    if (type !== undefined)           data.type           = type;
-    if (location !== undefined)       data.location       = location;
-    if (description !== undefined)    data.description    = description;
-    if (requirements !== undefined)   data.requirements   = requirements;
+    if (title !== undefined) data.title = title;
+    if (type !== undefined) data.type = type;
+    if (location !== undefined) data.location = location;
+    if (description !== undefined) data.description = description;
+    if (requirements !== undefined) data.requirements = requirements;
     if (qualifications !== undefined) data.qualifications = qualifications;
-    if (salary !== undefined)         data.salary         = salary;
-    if (attachment !== undefined)     data.attachment     = attachment;
+    if (salary !== undefined) data.salary = salary;
+    if (attachment !== undefined) data.attachment = attachment;
 
     const updated = await prisma.jobListing.update({ where: { id }, data });
     return sendSuccess(res, "Job updated", updated);
@@ -177,7 +202,10 @@ export const adminOpenJob = (req: AuthenticatedRequest, res: Response) =>
   setJobStatus(req, res, false);
 
 // DELETE /admin/jobs/:id
-export const adminDeleteJob = async (req: AuthenticatedRequest, res: Response) => {
+export const adminDeleteJob = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
     const id = req.params["id"] as string;
     const existing = await prisma.jobListing.findUnique({ where: { id } });

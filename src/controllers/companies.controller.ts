@@ -2,26 +2,30 @@ import type { Request, Response } from "express";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
 
-// GET /companies
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+const companyUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatar: true,
+  phone: true,
+} as const;
+
+// ── Public company directory ──────────────────────────────────────────────────
+
+// GET /companies?q=tech&sort=a-z&page=1&limit=10
 export const getCompanies = async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string | undefined;
+    const sort = req.query.sort as string | undefined;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
-    const sort = req.query.sort as string | undefined;
-
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-
-    if (q) {
-      where.companyUser = {
-        name: {
-          contains: q,
-          mode: "insensitive",
-        },
-      };
-    }
+    const where: any = q
+      ? { companyUser: { name: { contains: q, mode: "insensitive" } } }
+      : {};
 
     let orderBy: any = { updatedAt: "desc" };
     if (sort === "oldest") orderBy = { updatedAt: "asc" };
@@ -31,17 +35,7 @@ export const getCompanies = async (req: Request, res: Response) => {
     const [companies, total] = await Promise.all([
       prisma.companyProfile.findMany({
         where,
-        include: {
-          companyUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatar: true,
-              phone: true,
-            },
-          },
-        },
+        include: { companyUser: { select: companyUserSelect } },
         orderBy,
         skip,
         take: limit,
@@ -69,25 +63,12 @@ export const getCompany = async (req: Request, res: Response) => {
     const company = await prisma.companyProfile.findUnique({
       where: { id: companyId },
       include: {
-        companyUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            phone: true,
-          },
-        },
-        eventLinks: {
-          include: {
-            event: true,
-          },
-        },
+        companyUser: { select: companyUserSelect },
+        eventLinks: { include: { event: true } },
       },
     });
 
     if (!company) return sendError(res, "Company not found", 404);
-
     return sendSuccess(res, "Company", company);
   } catch {
     return sendError(res, "Server error", 500);
@@ -95,27 +76,21 @@ export const getCompany = async (req: Request, res: Response) => {
 };
 
 // GET /companies/:companyId/jobs
-export const getJobsInCompany = async (req: Request, res: Response) => {
+export const getCompanyJobs = async (req: Request, res: Response) => {
   try {
     const companyId = req.params["companyId"] as string;
 
-    const companyExists = await prisma.companyProfile.findUnique({
+    const company = await prisma.companyProfile.findUnique({
       where: { id: companyId },
     });
-
-    if (!companyExists) return sendError(res, "Company not found", 404);
+    if (!company) return sendError(res, "Company not found", 404);
 
     const jobs = await prisma.jobListing.findMany({
-      where: {
-        companyId: companyId,
-        isClosed: false,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where: { companyId, isClosed: false },
+      orderBy: { createdAt: "desc" },
     });
-    return sendSuccess(res, "Jobs", jobs);
-  } catch (error) {
+    return sendSuccess(res, "Company jobs", jobs);
+  } catch {
     return sendError(res, "Server error", 500);
   }
 };

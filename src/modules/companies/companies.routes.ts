@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   getCompanies,
   getCompany,
-  getJobsInCompany
+  getCompanyJobs,
 } from "../../controllers/companies.controller.js";
 
 export const companiesRouter = Router();
@@ -16,30 +16,25 @@ export const companiesRouter = Router();
  *     parameters:
  *       - in: query
  *         name: q
- *         schema:
- *           type: string
+ *         schema: { type: string }
  *         description: Search by company name (case-insensitive)
- *         example: tech
+ *       - in: query
+ *         name: sort
+ *         schema: { type: string, enum: [newest, oldest, a-z, z-a] }
+ *         description: Sort order (default newest)
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
  *     responses:
  *       200:
- *         description: List of all company profiles
+ *         description: Paginated company list
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
- *             example:
- *               success: true
- *               message: Companies
- *               data:
- *                 - id: "profile-uuid"
- *                   description: We build great software
- *                   logo: /uploads/logos/uuid.png
- *                   website: https://techcorp.com
- *                   companyUser:
- *                     id: "user-uuid"
- *                     name: Tech Corp
- *                     email: hr@techcorp.com
- *                     avatar: null
  */
 companiesRouter.get("/", getCompanies);
 
@@ -53,29 +48,14 @@ companiesRouter.get("/", getCompanies);
  *       - in: path
  *         name: companyId
  *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: CompanyProfile ID
+ *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Company profile detail
+ *         description: Company profile with event history
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
- *             example:
- *               success: true
- *               message: Company
- *               data:
- *                 id: "profile-uuid"
- *                 description: We build great software
- *                 logo: /uploads/logos/uuid.png
- *                 website: https://techcorp.com
- *                 companyUser:
- *                   id: "user-uuid"
- *                   name: Tech Corp
- *                   email: hr@techcorp.com
  *       404:
  *         description: Company not found
  *         content:
@@ -87,40 +67,23 @@ companiesRouter.get("/:companyId", getCompany);
 
 /**
  * @openapi
- * /companies/{companyId}/Jobs:
+ * /companies/{companyId}/jobs:
  *   get:
  *     summary: Get open job listings for a company
- *     description: >
- *       Returns only open job listings (isClosed = false). Closed jobs are
- *       never shown in this public endpoint.
- *       Note — the path uses a capital J in /Jobs (matches server routing).
+ *     description: Returns only open listings (isClosed = false).
  *     tags: [Companies]
  *     parameters:
  *       - in: path
  *         name: companyId
  *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: CompanyProfile ID
+ *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Open job listings for the company
+ *         description: Open job listings
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
- *             example:
- *               success: true
- *               message: Jobs
- *               data:
- *                 - id: "job-uuid"
- *                   title: Frontend Developer
- *                   type: full_time
- *                   location: Bangkok
- *                   description: Build cool UIs
- *                   salary: "50,000 THB"
- *                   isClosed: false
  *       404:
  *         description: Company not found
  *         content:
@@ -128,4 +91,5 @@ companiesRouter.get("/:companyId", getCompany);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-companiesRouter.get("/:companyId/Jobs", getJobsInCompany);
+// Fixed: was /jobs with capital J — now lowercase to match all other routes
+companiesRouter.get("/:companyId/jobs", getCompanyJobs);

@@ -1,16 +1,26 @@
 import type { Request, Response } from "express";
-import fs from "node:fs/promises";
-import path from "node:path";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
-import { storageDirectories, StorageService } from "../services/storage.service.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
+import { saveAvatarFile } from "../utils/uploads.js";
 import { env } from "../config/env.js";
 
-// POST /auth/register  — public, user role only
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+const selfSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  phone: true,
+  avatar: true,
+} as const;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+// POST /auth/register
 export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, password, role } = req.body;
@@ -30,88 +40,10 @@ export const register = async (req: Request, res: Response) => {
       data: { name, email, passwordHash, role },
     });
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
     return sendSuccess(res, "Registered successfully", { token }, 201);
-  } catch {
-    return sendError(res, "Server error", 500);
-  }
-};
-
-// ── Universal self-profile (all roles) ───────────────────────────────────────
-
-const selfSelect = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  phone: true,
-  avatar: true,
-} as const;
-
-// GET /auth/me
-export const getAuthProfile = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: selfSelect,
-    });
-    if (!user) return sendError(res, "User not found", 404);
-    return sendSuccess(res, "Profile", user);
-  } catch {
-    return sendError(res, "Server error", 500);
-  }
-};
-
-// PUT /auth/me  (name, phone, avatar file)
-export const updateAuthProfile = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { name, phone }: { name?: string; phone?: string } = req.body;
-
-    if (name  !== undefined && name.trim()  === "") return sendError(res, "Name cannot be empty", 400);
-    if (phone !== undefined && phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
-
-    const data: { name?: string; phone?: string; avatar?: string } = {};
-    if (name  !== undefined) data.name  = name;
-    if (phone !== undefined) data.phone = phone;
-
-    if (req.file) {
-      await fs.mkdir(storageDirectories.avatars, { recursive: true });
-      const fileName = `${uuidv4()}${path.extname(req.file.originalname)}`;
-      await fs.writeFile(path.join(storageDirectories.avatars, fileName), req.file.buffer);
-      data.avatar = StorageService.relativeUrl("avatars", fileName);
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: req.user!.id },
-      data,
-      select: selfSelect,
-    });
-    return sendSuccess(res, "Profile updated", updated);
-  } catch {
-    return sendError(res, "Server error", 500);
-  }
-};
-
-// POST /auth/change-password
-export const changePassword = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) return sendError(res, "Missing fields", 400);
-    if (newPassword.length < 6) return sendError(res, "New password must be at least 6 characters", 400);
-
-    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
-    if (!user) return sendError(res, "User not found", 404);
-
-    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!valid) return sendError(res, "Current password is incorrect", 401);
-
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: req.user!.id }, data: { passwordHash } });
-    return sendSuccess(res, "Password changed", null);
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -132,25 +64,101 @@ export const login = async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return sendError(res, "Invalid credentials", 401);
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
     return sendSuccess(res, "Login successful", { token });
   } catch {
     return sendError(res, "Server error", 500);
   }
 };
 
-// POST /auth/logout
-export const logout = async (req: AuthenticatedRequest, res: Response) => {
+// GET /auth/me
+export const getAuthProfile = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
   try {
-    res.cookie("token","none",{
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: selfSelect,
+    });
+    if (!user) return sendError(res, "User not found", 404);
+    return sendSuccess(res, "Profile", user);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// PUT /auth/me  — name, phone, avatar (multipart/form-data)
+export const updateAuthProfile = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
+  try {
+    const { name, phone }: { name?: string; phone?: string } = req.body;
+
+    if (name !== undefined && name.trim() === "")
+      return sendError(res, "Name cannot be empty", 400);
+    if (phone !== undefined && phone.trim() === "")
+      return sendError(res, "Phone cannot be empty", 400);
+
+    const data: { name?: string; phone?: string; avatar?: string } = {};
+    if (name !== undefined) data.name = name;
+    if (phone !== undefined) data.phone = phone;
+
+    if (req.file) {
+      data.avatar = await saveAvatarFile(req.file);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user!.id },
+      data,
+      select: selfSelect,
+    });
+    return sendSuccess(res, "Profile updated", updated);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// POST /auth/change-password
+export const changePassword = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return sendError(res, "Missing fields", 400);
+    if (newPassword.length < 6)
+      return sendError(res, "New password must be at least 6 characters", 400);
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) return sendError(res, "User not found", 404);
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return sendError(res, "Current password is incorrect", 401);
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { passwordHash },
+    });
+    return sendSuccess(res, "Password changed", null);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// POST /auth/logout
+export const logout = async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
-    return sendSuccess(res, "Logout successful", {}, 200);
+    return sendSuccess(res, "Logout successful", null);
   } catch {
     return sendError(res, "Server error", 500);
   }

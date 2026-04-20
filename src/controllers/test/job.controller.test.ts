@@ -1,7 +1,6 @@
 import type { Request } from "express";
 import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
-
 jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
   default: {
@@ -20,17 +19,17 @@ jest.mock("../../utils/prisma.js", () => ({
 
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
 const {
-  getCompanyJobs,
   getJob,
   adminGetCompanyJobs,
-  adminGetCompanyJob,
-  adminCreateCompanyJob,
+  adminCreateJob,
+  adminGetJob,
   adminUpdateJob,
   adminCloseJob,
   adminOpenJob,
   adminDeleteJob,
 } = require("../jobs.controller.js") as typeof import("../jobs.controller.js");
-
+const { getCompanyJobs } =
+  require("../companies.controller.js") as typeof import("../companies.controller.js");
 const mockCompanyFindUnique = prisma.companyProfile.findUnique as jest.Mock;
 const mockJobFindMany = prisma.jobListing.findMany as jest.Mock;
 const mockJobFindUnique = prisma.jobListing.findUnique as jest.Mock;
@@ -44,7 +43,9 @@ describe("jobs.controller", () => {
   });
 
   it("covers getCompanyJobs branches", async () => {
-    const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+    const req = makeReq<Request>({
+      params: { companyId: "company-1" } as Request["params"],
+    });
     const res = makeRes();
 
     mockCompanyFindUnique.mockResolvedValueOnce(null);
@@ -65,26 +66,54 @@ describe("jobs.controller", () => {
     const res = makeRes();
 
     mockJobFindUnique.mockResolvedValueOnce(null);
-    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    await getJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "u1", role: "jobSeeker" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(404);
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: true });
-    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    await getJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "u1", role: "jobSeeker" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(404);
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: true });
-    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await getJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(200);
 
     mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
-    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    await getJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "u1", role: "jobSeeker" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(500);
   });
 
   it("covers adminGetCompanyJobs and adminGetCompanyJob branches", async () => {
-    const req = makeAuthReq({ params: { companyId: "company-1", id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const req = makeAuthReq({
+      params: { companyId: "company-1", id: "job-1" },
+      user: { id: "a1", role: "systemAdmin" },
+    });
     const res = makeRes();
 
+    // --- RESTORED adminGetCompanyJobs 404 AND 200 PATHS ---
     mockCompanyFindUnique.mockResolvedValueOnce(null);
     await adminGetCompanyJobs(req, res);
     expect(res.status).toHaveBeenLastCalledWith(404);
@@ -93,42 +122,76 @@ describe("jobs.controller", () => {
     mockJobFindMany.mockResolvedValueOnce([{ id: "job-1" }]);
     await adminGetCompanyJobs(req, res);
     expect(res.status).toHaveBeenLastCalledWith(200);
+    // ------------------------------------------------------
 
     mockCompanyFindUnique.mockRejectedValueOnce(new Error("boom"));
     await adminGetCompanyJobs(req, res);
     expect(res.status).toHaveBeenLastCalledWith(500);
 
     mockJobFindUnique.mockResolvedValueOnce(null);
-    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminGetJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(404);
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: false });
-    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminGetJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(200);
 
     mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
-    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminGetJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(500);
   });
 
   it("covers adminCreateCompanyJob branches", async () => {
-    const req = makeAuthReq({ params: { companyId: "company-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const req = makeAuthReq({
+      params: { companyId: "company-1" },
+      user: { id: "a1", role: "systemAdmin" },
+    });
     const res = makeRes();
 
     mockCompanyFindUnique.mockResolvedValueOnce(null);
-    await adminCreateCompanyJob(req, res);
+    await adminCreateJob(req, res);
     expect(res.status).toHaveBeenLastCalledWith(404);
 
     mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
-    await adminCreateCompanyJob(makeAuthReq({ params: { companyId: "company-1" }, body: {}, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminCreateJob(
+      makeAuthReq({
+        params: { companyId: "company-1" },
+        body: {},
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(400);
 
     mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
     mockJobCreate.mockResolvedValueOnce({ id: "job-1" });
-    await adminCreateCompanyJob(
+    await adminCreateJob(
       makeAuthReq({
         params: { companyId: "company-1" },
-        body: { title: "Dev", type: "full_time", location: "Bangkok", description: "desc" },
+        body: {
+          title: "Dev",
+          type: "full_time",
+          location: "Bangkok",
+          description: "desc",
+        },
         user: { id: "a1", role: "systemAdmin" },
       }),
       res,
@@ -136,7 +199,7 @@ describe("jobs.controller", () => {
     expect(res.status).toHaveBeenLastCalledWith(201);
 
     mockCompanyFindUnique.mockRejectedValueOnce(new Error("boom"));
-    await adminCreateCompanyJob(req, res);
+    await adminCreateJob(req, res);
     expect(res.status).toHaveBeenLastCalledWith(500);
   });
 
@@ -144,7 +207,13 @@ describe("jobs.controller", () => {
     const res = makeRes();
 
     mockJobFindUnique.mockResolvedValueOnce(null);
-    await adminUpdateJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminUpdateJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(404);
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
@@ -196,13 +265,22 @@ describe("jobs.controller", () => {
     );
 
     mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
-    await adminUpdateJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    await adminUpdateJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
     expect(res.status).toHaveBeenLastCalledWith(500);
   });
 
   it("covers close/open helper branches", async () => {
     const res = makeRes();
-    const req = makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const req = makeAuthReq({
+      params: { id: "job-1" },
+      user: { id: "a1", role: "systemAdmin" },
+    });
 
     mockJobFindUnique.mockResolvedValueOnce(null);
     await adminCloseJob(req, res);
@@ -211,12 +289,18 @@ describe("jobs.controller", () => {
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
     mockJobUpdate.mockResolvedValueOnce({ id: "job-1", isClosed: true });
     await adminCloseJob(req, res);
-    expect(mockJobUpdate).toHaveBeenLastCalledWith({ where: { id: "job-1" }, data: { isClosed: true } });
+    expect(mockJobUpdate).toHaveBeenLastCalledWith({
+      where: { id: "job-1" },
+      data: { isClosed: true },
+    });
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
     mockJobUpdate.mockResolvedValueOnce({ id: "job-1", isClosed: false });
     await adminOpenJob(req, res);
-    expect(mockJobUpdate).toHaveBeenLastCalledWith({ where: { id: "job-1" }, data: { isClosed: false } });
+    expect(mockJobUpdate).toHaveBeenLastCalledWith({
+      where: { id: "job-1" },
+      data: { isClosed: false },
+    });
 
     mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
     mockJobUpdate.mockRejectedValueOnce(new Error("boom"));
@@ -225,7 +309,10 @@ describe("jobs.controller", () => {
   });
 
   it("covers adminDeleteJob branches", async () => {
-    const req = makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const req = makeAuthReq({
+      params: { id: "job-1" },
+      user: { id: "a1", role: "systemAdmin" },
+    });
     const res = makeRes();
 
     mockJobFindUnique.mockResolvedValueOnce(null);

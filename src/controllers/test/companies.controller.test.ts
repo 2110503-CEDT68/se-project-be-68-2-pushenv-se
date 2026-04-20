@@ -17,7 +17,7 @@ jest.mock("../../utils/prisma.js", () => ({
 }));
 
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
-const { getCompanies, getCompany, getJobsInCompany } = require("../companies.controller.js") as
+const { getCompanies, getCompany, getCompanyJobs } = require("../companies.controller.js") as
   typeof import("../companies.controller.js");
 
 const mockCompanyFindMany = prisma.companyProfile.findMany as jest.Mock;
@@ -177,7 +177,7 @@ describe("companies.controller", () => {
       const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
       const res = makeRes();
 
-      await getJobsInCompany(req, res);
+      await getCompanyJobs(req, res);
 
       expect(mockJobFindMany).toHaveBeenCalledWith({
         where: { companyId: "company-1", isClosed: false },
@@ -192,7 +192,7 @@ describe("companies.controller", () => {
       const req = makeReq<Request>({ params: { companyId: "missing" } as Request["params"] });
       const res = makeRes();
 
-      await getJobsInCompany(req, res);
+      await getCompanyJobs(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
     });
@@ -203,7 +203,7 @@ describe("companies.controller", () => {
       const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
       const res = makeRes();
 
-      await getJobsInCompany(req, res);
+      await getCompanyJobs(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
     });
