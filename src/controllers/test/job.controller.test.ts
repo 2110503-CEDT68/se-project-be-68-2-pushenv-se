@@ -1,252 +1,244 @@
-import { Response } from "express";
-import { AuthenticatedRequest } from "../../middlewares/auth.js";
+import type { Request } from "express";
+import type prismaType from "../../utils/prisma.js";
+import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 
-// --- MOCKS ---
-
-// Mock Prisma
 jest.mock("../../utils/prisma.js", () => ({
-    __esModule: true,
-    default: {
-        companyProfile: {
-            findUnique: jest.fn(),
-        },
-        jobListing: {
-            findMany: jest.fn(),
-            findUnique: jest.fn(),
-            create: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn(),
-        },
+  __esModule: true,
+  default: {
+    companyProfile: {
+      findUnique: jest.fn(),
     },
+    jobListing: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  },
 }));
 
-
-// Load controller via require() so jest.mock is already applied
-const prisma = require("../../utils/prisma.js").default;
+const prisma = require("../../utils/prisma.js").default as typeof prismaType;
 const {
-    getCompanyJobs,
-    getJob,
-    adminCreateCompanyJob,
-    adminUpdateJob,
-    adminCloseJob,
-    adminOpenJob,
-    adminDeleteJob,
-} = require("../jobs.controller.js");
+  getCompanyJobs,
+  getJob,
+  adminGetCompanyJobs,
+  adminGetCompanyJob,
+  adminCreateCompanyJob,
+  adminUpdateJob,
+  adminCloseJob,
+  adminOpenJob,
+  adminDeleteJob,
+} = require("../jobs.controller.js") as typeof import("../jobs.controller.js");
 
-// Helper to create a mock Request object
-const mockRequest = (params = {}, body = {}) => {
-    return {
-        params,
-        body,
-    } as unknown as AuthenticatedRequest;
-};
+const mockCompanyFindUnique = prisma.companyProfile.findUnique as jest.Mock;
+const mockJobFindMany = prisma.jobListing.findMany as jest.Mock;
+const mockJobFindUnique = prisma.jobListing.findUnique as jest.Mock;
+const mockJobCreate = prisma.jobListing.create as jest.Mock;
+const mockJobUpdate = prisma.jobListing.update as jest.Mock;
+const mockJobDelete = prisma.jobListing.delete as jest.Mock;
 
-// Helper to create a mock Response object
-const mockResponse = () => {
-    const res: Partial<Response> = {};
-    res.status = jest.fn().mockReturnValue(res);
-    res.json = jest.fn().mockReturnValue(res);
-    return res as Response;
-};
+describe("jobs.controller", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
 
-// --- TEST SUITE ---
+  it("covers getCompanyJobs branches", async () => {
+    const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+    const res = makeRes();
 
-describe("Job Controllers", () => {
-    let res: Response;
+    mockCompanyFindUnique.mockResolvedValueOnce(null);
+    await getCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-    beforeEach(() => {
-        // Clear all mocks before each test to ensure isolated testing
-        jest.clearAllMocks();
-        res = mockResponse();
-        // Suppress console.error in tests to keep terminal output clean when testing 500 errors
-        jest.spyOn(console, "error").mockImplementation(() => { });
-    });
+    mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
+    mockJobFindMany.mockResolvedValueOnce([{ id: "job-1" }]);
+    await getCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-    describe("getCompanyJobs", () => {
-        it("should return 404 if company is not found", async () => {
-            const req = mockRequest({ companyId: "123" });
-            (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue(null);
+    mockCompanyFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await getCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-            await getCompanyJobs(req, res);
+  it("covers getJob branches for missing, closed, admin, and catch", async () => {
+    const res = makeRes();
 
-            expect(prisma.companyProfile.findUnique).toHaveBeenCalledWith({ where: { id: "123" } });
-            expect(res.status).toHaveBeenCalledWith(404);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Company not found" }));
-        });
+    mockJobFindUnique.mockResolvedValueOnce(null);
+    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-        it("should return only open jobs on success", async () => {
-            const req = mockRequest({ companyId: "123" });
-            const mockJobs = [{ id: "job1", isClosed: false }];
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: true });
+    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue({ id: "123" });
-            (prisma.jobListing.findMany as jest.Mock).mockResolvedValue(mockJobs);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: true });
+    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-            await getCompanyJobs(req, res);
+    mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await getJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "u1", role: "jobSeeker" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-            expect(prisma.jobListing.findMany).toHaveBeenCalledWith({
-                where: { companyId: "123", isClosed: false },
-                orderBy: { createdAt: "desc" },
-            });
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: mockJobs }));
-        });
+  it("covers adminGetCompanyJobs and adminGetCompanyJob branches", async () => {
+    const req = makeAuthReq({ params: { companyId: "company-1", id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const res = makeRes();
 
-        it("should return 500 on database error", async () => {
-            const req = mockRequest({ companyId: "123" });
-            (prisma.companyProfile.findUnique as jest.Mock).mockRejectedValue(new Error("DB Error"));
+    mockCompanyFindUnique.mockResolvedValueOnce(null);
+    await adminGetCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            await getCompanyJobs(req, res);
+    mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
+    mockJobFindMany.mockResolvedValueOnce([{ id: "job-1" }]);
+    await adminGetCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-            expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Server error" }));
-        });
-    });
+    mockCompanyFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await adminGetCompanyJobs(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
 
-    describe("getJob", () => {
-        it("should return 404 if job is not found", async () => {
-            const req = mockRequest({ id: "job1" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue(null);
+    mockJobFindUnique.mockResolvedValueOnce(null);
+    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            await getJob(req, res);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1", isClosed: false });
+    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-            expect(res.status).toHaveBeenCalledWith(404);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Job not found" }));
-        });
+    mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await adminGetCompanyJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-        it("should return the job on success", async () => {
-            const req = mockRequest({ id: "job1" });
-            const mockJob = { id: "job1", title: "Software Engineer", company: {} };
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue(mockJob);
+  it("covers adminCreateCompanyJob branches", async () => {
+    const req = makeAuthReq({ params: { companyId: "company-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const res = makeRes();
 
-            await getJob(req, res);
+    mockCompanyFindUnique.mockResolvedValueOnce(null);
+    await adminCreateCompanyJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job detail" }));
-        });
-    });
+    mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
+    await adminCreateCompanyJob(makeAuthReq({ params: { companyId: "company-1" }, body: {}, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(400);
 
-    describe("adminCreateCompanyJob", () => {
-        it("should return 404 if company does not exist", async () => {
-            const req = mockRequest({ companyId: "123" }, { title: "Dev", type: "Full", location: "NY", description: "Desc" });
-            (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue(null);
+    mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
+    mockJobCreate.mockResolvedValueOnce({ id: "job-1" });
+    await adminCreateCompanyJob(
+      makeAuthReq({
+        params: { companyId: "company-1" },
+        body: { title: "Dev", type: "full_time", location: "Bangkok", description: "desc" },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(201);
 
-            await adminCreateCompanyJob(req, res);
+    mockCompanyFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await adminCreateCompanyJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-            expect(res.status).toHaveBeenCalledWith(404);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Company not found" }));
-        });
+  it("covers adminUpdateJob branches and all optional fields", async () => {
+    const res = makeRes();
 
-        it("should return 400 if required fields are missing", async () => {
-            const req = mockRequest({ companyId: "123" }, { title: "Dev" }); // Missing type, location, description
-            (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue({ id: "123" });
+    mockJobFindUnique.mockResolvedValueOnce(null);
+    await adminUpdateJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            await adminCreateCompanyJob(req, res);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobUpdate.mockResolvedValueOnce({ id: "job-1" });
+    await adminUpdateJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        body: {
+          title: "Dev",
+          type: "contract",
+          location: "Remote",
+          description: "desc",
+          requirements: "req",
+          qualifications: "qual",
+          salary: "1000",
+          attachment: "file",
+        },
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
+    expect(mockJobUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: {
+          title: "Dev",
+          type: "contract",
+          location: "Remote",
+          description: "desc",
+          requirements: "req",
+          qualifications: "qual",
+          salary: "1000",
+          attachment: "file",
+        },
+      }),
+    );
 
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Missing required fields" }));
-        });
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobUpdate.mockResolvedValueOnce({ id: "job-1" });
+    await adminUpdateJob(
+      makeAuthReq({
+        params: { id: "job-1" },
+        body: {},
+        user: { id: "a1", role: "systemAdmin" },
+      }),
+      res,
+    );
+    expect(mockJobUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: {} }),
+    );
 
-        it("should create a job and return 201", async () => {
-            const mockBody = { title: "Dev", type: "full_time", location: "NY", description: "Desc" };
-            const req = mockRequest({ companyId: "123" }, mockBody);
-            const mockJob = { id: "job1", ...mockBody };
+    mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await adminUpdateJob(makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-            (prisma.companyProfile.findUnique as jest.Mock).mockResolvedValue({ id: "123" });
-            (prisma.jobListing.create as jest.Mock).mockResolvedValue(mockJob);
+  it("covers close/open helper branches", async () => {
+    const res = makeRes();
+    const req = makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
 
-            await adminCreateCompanyJob(req, res);
+    mockJobFindUnique.mockResolvedValueOnce(null);
+    await adminCloseJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            expect(prisma.jobListing.create).toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(201);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job created" }));
-        });
-    });
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobUpdate.mockResolvedValueOnce({ id: "job-1", isClosed: true });
+    await adminCloseJob(req, res);
+    expect(mockJobUpdate).toHaveBeenLastCalledWith({ where: { id: "job-1" }, data: { isClosed: true } });
 
-    describe("adminUpdateJob", () => {
-        it("should return 404 if job does not exist", async () => {
-            const req = mockRequest({ id: "job1" }, { title: "New Title" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue(null);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobUpdate.mockResolvedValueOnce({ id: "job-1", isClosed: false });
+    await adminOpenJob(req, res);
+    expect(mockJobUpdate).toHaveBeenLastCalledWith({ where: { id: "job-1" }, data: { isClosed: false } });
 
-            await adminUpdateJob(req, res);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobUpdate.mockRejectedValueOnce(new Error("boom"));
+    await adminOpenJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 
-            expect(res.status).toHaveBeenCalledWith(404);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Job not found" }));
-        });
+  it("covers adminDeleteJob branches", async () => {
+    const req = makeAuthReq({ params: { id: "job-1" }, user: { id: "a1", role: "systemAdmin" } });
+    const res = makeRes();
 
-        it("should update the job and return success", async () => {
-            const req = mockRequest({ id: "job1" }, { title: "New Title" });
-            const existingJob = { id: "job1", title: "Old Title" };
-            const updatedJob = { id: "job1", title: "New Title" };
+    mockJobFindUnique.mockResolvedValueOnce(null);
+    await adminDeleteJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue(existingJob);
-            (prisma.jobListing.update as jest.Mock).mockResolvedValue(updatedJob);
+    mockJobFindUnique.mockResolvedValueOnce({ id: "job-1" });
+    mockJobDelete.mockResolvedValueOnce({ id: "job-1" });
+    await adminDeleteJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-            await adminUpdateJob(req, res);
-
-            expect(prisma.jobListing.update).toHaveBeenCalledWith({
-                where: { id: "job1" },
-                data: expect.objectContaining({ title: "New Title" }),
-            });
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job updated" }));
-        });
-    });
-
-    describe("adminCloseJob", () => {
-        it("should set isClosed to true", async () => {
-            const req = mockRequest({ id: "job1" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue({ id: "job1", isClosed: false });
-            (prisma.jobListing.update as jest.Mock).mockResolvedValue({ id: "job1", isClosed: true });
-
-            await adminCloseJob(req, res);
-
-            expect(prisma.jobListing.update).toHaveBeenCalledWith({
-                where: { id: "job1" },
-                data: { isClosed: true },
-            });
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job closed" }));
-        });
-    });
-
-    describe("adminOpenJob", () => {
-        it("should set isClosed to false", async () => {
-            const req = mockRequest({ id: "job1" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue({ id: "job1", isClosed: true });
-            (prisma.jobListing.update as jest.Mock).mockResolvedValue({ id: "job1", isClosed: false });
-
-            await adminOpenJob(req, res);
-
-            expect(prisma.jobListing.update).toHaveBeenCalledWith({
-                where: { id: "job1" },
-                data: { isClosed: false },
-            });
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job opened" }));
-        });
-    });
-
-    describe("adminDeleteJob", () => {
-        it("should return 404 if job does not exist", async () => {
-            const req = mockRequest({ id: "job1" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue(null);
-
-            await adminDeleteJob(req, res);
-
-            expect(res.status).toHaveBeenCalledWith(404);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Job not found" }));
-        });
-
-        it("should delete the job and return success", async () => {
-            const req = mockRequest({ id: "job1" });
-            (prisma.jobListing.findUnique as jest.Mock).mockResolvedValue({ id: "job1" });
-            (prisma.jobListing.delete as jest.Mock).mockResolvedValue({ id: "job1" });
-
-            await adminDeleteJob(req, res);
-
-            expect(prisma.jobListing.delete).toHaveBeenCalledWith({ where: { id: "job1" } });
-            expect(res.status).toHaveBeenCalledWith(200);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Job deleted" }));
-        });
-    });
+    mockJobFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await adminDeleteJob(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
 });

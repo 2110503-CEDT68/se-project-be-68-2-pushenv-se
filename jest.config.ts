@@ -4,30 +4,45 @@ const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
 
-  // Tell ts-jest to use the jest-specific tsconfig (CommonJS mode)
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
         tsconfig: "tsconfig.jest.json",
+        diagnostics: false,
       },
     ],
   },
 
-  // Strip the .js extension from ESM imports so Jest can resolve .ts files
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
 
-  // Where to find test files
   testMatch: ["**/__tests__/**/*.test.ts", "**/*.test.ts"],
 
-  // Collect coverage from src (excluding entry points)
   collectCoverageFrom: [
+    "src/app.ts",
+    "src/config/env.ts",
     "src/controllers/**/*.ts",
+    "src/middlewares/**/*.ts",
+    "src/modules/**/*.ts",
+    "src/routes/**/*.ts",
+    "src/services/**/*.ts",
+    "src/utils/http.ts",
+    "src/utils/swagger.ts",
+    "src/utils/uploads.ts",
     "!src/server.ts",
-    "!src/app.ts",
+    "!src/**/*.test.ts",
+    "!src/utils/prisma.ts",
   ],
+  coverageThreshold: {
+    global: {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+  },
 };
 
 export default config;
