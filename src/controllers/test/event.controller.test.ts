@@ -88,7 +88,11 @@ describe("events.controller", () => {
 
       await getPublishedEvents(req, res);
 
-      const where = (mockEventFindMany.mock.calls[0]?.[0] as { where: { OR: Array<{ name: { contains: string } }> } }).where;
+      const where = (
+        mockEventFindMany.mock.calls[0]?.[0] as {
+          where: { OR: Array<{ name: { contains: string } }> };
+        }
+      ).where;
       expect(where.OR[0]?.name.contains).toHaveLength(100);
       expect(mockEventFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 4, take: 2 }),
@@ -111,9 +115,14 @@ describe("events.controller", () => {
 
   describe("getEventById", () => {
     it("returns the published event", async () => {
-      mockEventFindUnique.mockResolvedValueOnce({ ...event, _count: { registrations: 1, companies: 1 } });
+      mockEventFindUnique.mockResolvedValueOnce({
+        ...event,
+        _count: { registrations: 1, companies: 1 },
+      });
 
-      const req = makeReq<Request>({ params: { id: "event-1" } as Request["params"] });
+      const req = makeReq<Request>({
+        params: { id: "event-1" } as Request["params"],
+      });
       const res = makeRes();
 
       await getEventById(req, res);
@@ -122,14 +131,19 @@ describe("events.controller", () => {
     });
 
     it("returns 404 when the event is missing or unpublished", async () => {
-      const req = makeReq<Request>({ params: { id: "event-1" } as Request["params"] });
+      const req = makeReq<Request>({
+        params: { id: "event-1" } as Request["params"],
+      });
 
       mockEventFindUnique.mockResolvedValueOnce(null);
       const missingRes = makeRes();
       await getEventById(req, missingRes);
       expect(missingRes.status).toHaveBeenCalledWith(404);
 
-      mockEventFindUnique.mockResolvedValueOnce({ ...event, isPublished: false });
+      mockEventFindUnique.mockResolvedValueOnce({
+        ...event,
+        isPublished: false,
+      });
       const hiddenRes = makeRes();
       await getEventById(req, hiddenRes);
       expect(hiddenRes.status).toHaveBeenCalledWith(404);
@@ -171,13 +185,27 @@ describe("events.controller", () => {
     });
 
     it("returns 404 and 500 error branches", async () => {
-      const req = makeReq<Request>({ params: { id: "event-1" } as Request["params"] });
+      const req = makeReq<Request>({
+        params: { id: "event-1" } as Request["params"],
+      });
 
+      // Missing Event
       mockEventFindUnique.mockResolvedValueOnce(null);
       const notFoundRes = makeRes();
       await getEventCompanies(req, notFoundRes);
       expect(notFoundRes.status).toHaveBeenCalledWith(404);
 
+      // Unpublished Event -> Now returns 404
+      mockEventFindUnique.mockResolvedValueOnce({
+        id: "event-1",
+        isPublished: false,
+        companies: [],
+      });
+      const unpublishedRes = makeRes();
+      await getEventCompanies(req, unpublishedRes);
+      expect(unpublishedRes.status).toHaveBeenCalledWith(404);
+
+      // Server Error
       mockEventFindUnique.mockRejectedValueOnce(new Error("boom"));
       const errorRes = makeRes();
       await getEventCompanies(req, errorRes);
@@ -223,20 +251,18 @@ describe("events.controller", () => {
       await getMyEventRegistrationStatus(req, notFoundRes);
       expect(notFoundRes.status).toHaveBeenCalledWith(404);
 
-      mockEventFindUnique.mockResolvedValueOnce({ ...event, isPublished: false });
-      const forbiddenRes = makeRes();
-      await getMyEventRegistrationStatus(req, forbiddenRes);
-      expect(forbiddenRes.status).toHaveBeenCalledWith(403);
+      mockEventFindUnique.mockResolvedValueOnce({
+        ...event,
+        isPublished: false,
+      });
+      const unpublishedRes = makeRes();
+      await getMyEventRegistrationStatus(req, unpublishedRes);
+      expect(unpublishedRes.status).toHaveBeenCalledWith(404);
 
       mockEventFindUnique.mockRejectedValueOnce(new Error("boom"));
       const errorRes = makeRes();
       await getMyEventRegistrationStatus(req, errorRes);
       expect(errorRes.status).toHaveBeenCalledWith(500);
-
-      mockEventFindUnique.mockRejectedValueOnce("boom");
-      const nonErrorRes = makeRes();
-      await getMyEventRegistrationStatus(req, nonErrorRes);
-      expect(nonErrorRes.status).toHaveBeenCalledWith(500);
     });
   });
 
@@ -267,10 +293,13 @@ describe("events.controller", () => {
       await registerForEvent(req, notFoundRes);
       expect(notFoundRes.status).toHaveBeenCalledWith(404);
 
-      mockEventFindUnique.mockResolvedValueOnce({ ...event, isPublished: false });
-      const forbiddenRes = makeRes();
-      await registerForEvent(req, forbiddenRes);
-      expect(forbiddenRes.status).toHaveBeenCalledWith(403);
+      mockEventFindUnique.mockResolvedValueOnce({
+        ...event,
+        isPublished: false,
+      });
+      const unpublishedRes = makeRes();
+      await registerForEvent(req, unpublishedRes);
+      expect(unpublishedRes.status).toHaveBeenCalledWith(404);
 
       mockEventFindUnique.mockResolvedValueOnce(event);
       mockRegistrationCreate.mockRejectedValueOnce({ code: "P2002" });

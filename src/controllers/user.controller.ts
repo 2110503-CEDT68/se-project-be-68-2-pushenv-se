@@ -3,6 +3,8 @@ import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
 import { saveAvatarFile } from "../utils/uploads.js";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,20 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
     if (phone !== undefined) data.phone = phone;
 
     if (req.file) {
+      const existing = await prisma.user.findUnique({ 
+        where: { id: req.user!.id }, 
+        select: { avatar: true } 
+      });
+
+      if (existing?.avatar) {
+        try {
+          const filePath = path.join(process.cwd(), "uploads", existing.avatar); 
+          await fs.unlink(filePath);
+        } catch (err) {
+          console.error("Failed to delete old avatar:", err);
+        }
+      }
+
       data.avatar = await saveAvatarFile(req.file);
     }
 

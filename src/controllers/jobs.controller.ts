@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
+import { JobType } from "@prisma/client";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ export const adminUpdateJob = async (
 
     const data: {
       title?: string;
-      type?: any;
+      type?: JobType;
       location?: string;
       description?: string;
       requirements?: string;

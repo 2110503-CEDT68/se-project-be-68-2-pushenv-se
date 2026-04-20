@@ -19,14 +19,9 @@ const companySelect = {
 } as const;
 
 // Helper: load a published event by id, or send the appropriate error.
-async function requirePublishedEvent(eventId: string, res: Response) {
+async function getPublishedEvent(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) {
-    sendError(res, "Event not found", 404);
-    return null;
-  }
-  if (!event.isPublished) {
-    sendError(res, "Event not available", 403);
+  if (!event || !event.isPublished) {
     return null;
   }
   return event;
@@ -98,9 +93,11 @@ export const getEventCompanies = async (req: Request, res: Response) => {
       include: { companies: { select: companySelect } },
     });
 
-    if (!event) return sendError(res, "Event not found", 404);
+    if (!event || !event.isPublished) return sendError(res, "Event not found", 404);
+    
     return sendSuccess(res, "Event companies", event.companies);
-  } catch {
+  } catch (err) {
+    console.error(err);
     return sendError(res, "Server error", 500);
   }
 };
@@ -114,9 +111,8 @@ export const getMyEventRegistrationStatus = async (
     const eventId = req.params["id"] as string;
     const jobSeekerId = req.user!.id;
 
-    // requirePublishedEvent replaces the duplicate findUnique + 404/403 checks
-    const event = await requirePublishedEvent(eventId, res);
-    if (!event) return;
+    const event = await getPublishedEvent(eventId);
+    if (!event) return sendError(res, "Event not found", 404);
 
     const registration = await prisma.eventRegistration.findUnique({
       where: { eventId_jobSeekerId: { eventId, jobSeekerId } },
@@ -141,8 +137,8 @@ export const registerForEvent = async (
     const jobSeekerId = req.user!.id;
 
     // requirePublishedEvent replaces the duplicate findUnique + 404/403 checks
-    const event = await requirePublishedEvent(eventId, res);
-    if (!event) return;
+    const event = await getPublishedEvent(eventId);
+    if (!event) return sendError(res, "Event not found", 404);
 
     const registration = await prisma.eventRegistration.create({
       data: { eventId, jobSeekerId },

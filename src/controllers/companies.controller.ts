@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
+import { Prisma } from "@prisma/client";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ export const getCompanies = async (req: Request, res: Response) => {
     const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
 
-    const where: any = q
+    const where: Prisma.CompanyProfileWhereInput = q
       ? { companyUser: { name: { contains: q, mode: "insensitive" } } }
       : {};
 

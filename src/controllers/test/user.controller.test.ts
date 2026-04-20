@@ -5,6 +5,7 @@ import { makeAuthReq, makeRes } from "../../test/helpers.js";
 jest.mock("node:fs/promises", () => ({
   mkdir: jest.fn(),
   writeFile: jest.fn(),
+  unlink: jest.fn(), // <-- ADDED
 }));
 
 jest.mock("uuid", () => ({
@@ -42,11 +43,17 @@ const mockRegFindUnique = prisma.eventRegistration.findUnique as jest.Mock;
 const mockRegDelete = prisma.eventRegistration.delete as jest.Mock;
 const mockMkdir = fs.mkdir as jest.Mock;
 const mockWriteFile = fs.writeFile as jest.Mock;
+const mockUnlink = fs.unlink as jest.Mock; // <-- ADDED
 
 describe("user.controller", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockUuid.mockReturnValue("uuid-123");
+    jest.spyOn(console, "error").mockImplementation(() => undefined); // Silence console.errors in tests
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("covers getMe branches", async () => {
@@ -81,6 +88,9 @@ describe("user.controller", () => {
       expect.objectContaining({ data: { name: "New", phone: "123" } }),
     );
 
+    // File Provided + User has existing avatar (unlink succeeds)
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
+    mockUnlink.mockResolvedValueOnce(undefined);
     mockMkdir.mockResolvedValueOnce(undefined);
     mockWriteFile.mockResolvedValueOnce(undefined);
     mockUserUpdate.mockResolvedValueOnce({
@@ -97,6 +107,7 @@ describe("user.controller", () => {
       }),
       res,
     );
+    expect(mockUnlink).toHaveBeenCalled();
     expect(mockWriteFile).toHaveBeenCalled();
     expect(mockUserUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -106,6 +117,26 @@ describe("user.controller", () => {
       }),
     );
 
+    // File Provided + User has existing avatar (unlink throws error, is caught safely)
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
+    mockUnlink.mockRejectedValueOnce(new Error("File not found on disk"));
+    mockMkdir.mockResolvedValueOnce(undefined);
+    mockWriteFile.mockResolvedValueOnce(undefined);
+    mockUserUpdate.mockResolvedValueOnce({ id: "user-1" });
+    await updateMe(
+      makeAuthReq({
+        body: {},
+        file: {
+          originalname: "avatar.png",
+          buffer: Buffer.from("img"),
+        } as Express.Multer.File,
+      }),
+      res,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(200);
+
+    // File Provided + No existing avatar + mkdir fails -> 500 error
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: null });
     mockMkdir.mockRejectedValueOnce(new Error("boom"));
     await updateMe(
       makeAuthReq({
