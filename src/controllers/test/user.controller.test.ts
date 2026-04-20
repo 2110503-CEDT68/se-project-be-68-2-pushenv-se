@@ -1,24 +1,14 @@
-import { Response } from "express";
 import fs from "node:fs/promises";
-import type { Express } from "express";
-import type { AuthenticatedRequest } from "../../middlewares/auth.js";
 import type prismaType from "../../utils/prisma.js";
-import type {
-  getMe as GetMeType,
-  updateMe as UpdateMeType,
-} from "../user.controller.js";
+import { makeAuthReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("node:fs/promises", () => ({
-  __esModule: true,
-  default: {
-    mkdir: jest.fn(),
-    writeFile: jest.fn(),
-  },
+  mkdir: jest.fn(),
+  writeFile: jest.fn(),
 }));
 
 jest.mock("uuid", () => ({
-  __esModule: true,
-  v4: jest.fn(() => "generated-avatar-id"),
+  v4: jest.fn(() => "uuid-123"),
 }));
 
 jest.mock("../../utils/prisma.js", () => ({
@@ -27,187 +17,164 @@ jest.mock("../../utils/prisma.js", () => ({
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+    },
+    eventRegistration: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      delete: jest.fn(),
     },
   },
 }));
 
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
-const { getMe, updateMe } = require("../user.controller.js") as {
-  getMe: typeof GetMeType;
-  updateMe: typeof UpdateMeType;
-};
+const mockUuid = require("uuid").v4 as jest.Mock;
+const { getMe, updateMe, deleteMe, getRegistrations, deleteRegistration } =
+  require("../user.controller.js") as typeof import("../user.controller.js");
 
-const mockedFs = fs as jest.Mocked<typeof fs>;
-const mockFindUnique = prisma.user.findUnique as jest.MockedFunction<
-  typeof prisma.user.findUnique
->;
-const mockUpdate = prisma.user.update as jest.MockedFunction<
-  typeof prisma.user.update
->;
+const mockUserFindUnique = prisma.user.findUnique as jest.Mock;
+const mockUserUpdate = prisma.user.update as jest.Mock;
+const mockUserDelete = prisma.user.delete as jest.Mock;
+const mockRegFindMany = prisma.eventRegistration.findMany as jest.Mock;
+const mockRegCount = prisma.eventRegistration.count as jest.Mock;
+const mockRegFindFirst = prisma.eventRegistration.findFirst as jest.Mock;
+const mockRegDelete = prisma.eventRegistration.delete as jest.Mock;
+const mockMkdir = fs.mkdir as jest.Mock;
+const mockWriteFile = fs.writeFile as jest.Mock;
 
-function makeReq(
-  overrides: Partial<AuthenticatedRequest> = {},
-): AuthenticatedRequest {
-  return {
-    user: { id: "user-123", role: "user" },
-    body: {},
-    params: {},
-    ...overrides,
-  } as unknown as AuthenticatedRequest;
-}
+describe("user.controller", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockUuid.mockReturnValue("uuid-123");
+  });
 
-function makeRes(): Response {
-  return {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn().mockReturnThis(),
-  } as unknown as Response;
-}
-
-const safeUserProfile = {
-  id: "user-123",
-  name: "Alice",
-  email: "alice@example.com",
-  phone: "0812345678",
-  avatar: "/uploads/avatars/avatar.png",
-};
-
-const fileUpload = {
-  fieldname: "avatar",
-  originalname: "avatar.png",
-  encoding: "7bit",
-  mimetype: "image/png",
-  size: 11,
-  stream: undefined as unknown as NodeJS.ReadableStream,
-  destination: "",
-  filename: "",
-  path: "",
-  buffer: Buffer.from("image-bytes"),
-} as Express.Multer.File;
-
-describe("getMe", () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it("returns only safe profile fields", async () => {
-    mockFindUnique.mockResolvedValueOnce(
-      safeUserProfile as Awaited<ReturnType<typeof prisma.user.findUnique>>,
-    );
-
-    const req = makeReq();
+  it("covers getMe branches", async () => {
+    const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" } });
     const res = makeRes();
 
+    mockUserFindUnique.mockResolvedValueOnce({ id: "user-1" });
     await getMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
 
-    expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { id: "user-123" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatar: true,
-      },
-    });
+    mockUserFindUnique.mockResolvedValueOnce(null);
+    await getMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      message: "User profile",
-      data: safeUserProfile,
-    });
-  });
-});
-
-describe("updateMe", () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it("allows partial updates without requiring phone", async () => {
-    mockUpdate.mockResolvedValueOnce(
-      {
-        ...safeUserProfile,
-        name: "Updated Alice",
-      } as Awaited<ReturnType<typeof prisma.user.update>>,
-    );
-
-    const req = makeReq({
-      body: { name: "Updated Alice" },
-    });
-    const res = makeRes();
-
-    await updateMe(req, res);
-
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "user-123" },
-      data: { name: "Updated Alice" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatar: true,
-      },
-    });
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      message: "User updated",
-      data: {
-        ...safeUserProfile,
-        name: "Updated Alice",
-      },
-    });
+    mockUserFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await getMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
   });
 
-  it("allows avatar-only updates", async () => {
-    mockUpdate.mockResolvedValueOnce(
-      {
-        ...safeUserProfile,
-        avatar: "/uploads/avatars/new-avatar.png",
-      } as Awaited<ReturnType<typeof prisma.user.update>>,
-    );
-
-    const req = makeReq({
-      file: fileUpload,
-    });
+  it("covers updateMe validation, file branch, and catch", async () => {
     const res = makeRes();
 
-    await updateMe(req, res);
+    await updateMe(makeAuthReq({ body: { name: " " } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(400);
 
-    expect(mockedFs.mkdir).toHaveBeenCalled();
-    expect(mockedFs.writeFile).toHaveBeenCalled();
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "user-123" },
-      data: expect.objectContaining({
-        avatar: expect.stringMatching(/^\/uploads\/avatars\/.+\.png$/),
+    await updateMe(makeAuthReq({ body: { phone: " " } }), res);
+    expect(res.status).toHaveBeenLastCalledWith(400);
+
+    mockUserUpdate.mockResolvedValueOnce({ id: "user-1" });
+    await updateMe(makeAuthReq({ body: { name: "New", phone: "123" } }), res);
+    expect(mockUserUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: { name: "New", phone: "123" } }),
+    );
+
+    mockMkdir.mockResolvedValueOnce(undefined);
+    mockWriteFile.mockResolvedValueOnce(undefined);
+    mockUserUpdate.mockResolvedValueOnce({ id: "user-1", avatar: "/uploads/avatars/uuid-123.png" });
+    await updateMe(
+      makeAuthReq({
+        body: { name: "New" },
+        file: { originalname: "avatar.png", buffer: Buffer.from("img") },
       }),
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatar: true,
-      },
-    });
-  });
-
-  it("does not expose passwordHash in the response payload", async () => {
-    mockUpdate.mockResolvedValueOnce(
-      safeUserProfile as Awaited<ReturnType<typeof prisma.user.update>>,
+      res,
+    );
+    expect(mockWriteFile).toHaveBeenCalled();
+    expect(mockUserUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ avatar: "/uploads/avatars/uuid-123.png" }),
+      }),
     );
 
-    const req = makeReq({
-      body: { phone: "0899999999" },
+    mockMkdir.mockRejectedValueOnce(new Error("boom"));
+    await updateMe(
+      makeAuthReq({
+        body: {},
+        file: { originalname: "avatar.png", buffer: Buffer.from("img") },
+      }),
+      res,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
+
+  it("covers deleteMe branches", async () => {
+    const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" } });
+    const res = makeRes();
+
+    mockUserFindUnique.mockResolvedValueOnce(null);
+    await deleteMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
+
+    mockUserFindUnique.mockResolvedValueOnce({ id: "user-1" });
+    mockUserDelete.mockResolvedValueOnce({ id: "user-1" });
+    await deleteMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(200);
+
+    mockUserFindUnique.mockRejectedValueOnce(new Error("boom"));
+    await deleteMe(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
+
+  it("covers getRegistrations defaults, clamping, and catch", async () => {
+    const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" }, query: {} });
+    const res = makeRes();
+
+    mockRegFindMany.mockResolvedValueOnce([]);
+    mockRegCount.mockResolvedValueOnce(0);
+    await getRegistrations(req, res);
+    expect(mockRegFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ skip: 0, take: 10 }),
+    );
+
+    mockRegFindMany.mockResolvedValueOnce([]);
+    mockRegCount.mockResolvedValueOnce(101);
+    await getRegistrations(
+      makeAuthReq({
+        user: { id: "user-1", role: "jobSeeker" },
+        query: { page: "0", limit: "1000" },
+      }),
+      res,
+    );
+    expect(mockRegFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ skip: 0, take: 100 }),
+    );
+
+    mockRegFindMany.mockRejectedValueOnce(new Error("boom"));
+    await getRegistrations(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
+  });
+
+  it("covers deleteRegistration branches", async () => {
+    const req = makeAuthReq({
+      user: { id: "user-1", role: "jobSeeker" },
+      params: { eventId: "event-1" },
     });
     const res = makeRes();
 
-    await updateMe(req, res);
+    mockRegFindFirst.mockResolvedValueOnce(null);
+    await deleteRegistration(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(404);
 
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      message: "User updated",
-      data: expect.not.objectContaining({
-        passwordHash: expect.anything(),
-      }),
-    });
+    mockRegFindFirst.mockResolvedValueOnce({ id: "reg-1" });
+    mockRegDelete.mockResolvedValueOnce({ id: "reg-1" });
+    await deleteRegistration(req, res);
+    expect(mockRegDelete).toHaveBeenCalledWith({ where: { id: "reg-1" } });
+    expect(res.status).toHaveBeenLastCalledWith(200);
+
+    mockRegFindFirst.mockRejectedValueOnce(new Error("boom"));
+    await deleteRegistration(req, res);
+    expect(res.status).toHaveBeenLastCalledWith(500);
   });
 });

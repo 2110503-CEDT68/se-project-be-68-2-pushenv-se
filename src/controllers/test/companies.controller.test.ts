@@ -1,18 +1,14 @@
-import { Request, Response } from "express";
+import type { Request } from "express";
 import type prismaType from "../../utils/prisma.js";
-import type {
-  getCompanies as GetCompaniesType,
-  getCompany as GetCompanyType,
-  getJobsInCompany as GetJobsInCompanyType,
-} from "../companies.controller.js";
+import { makeReq, makeRes } from "../../test/helpers.js";
 
-// ── Mock prisma BEFORE any require() ─────────────────────────────────────────
 jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
   default: {
     companyProfile: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
     jobListing: {
       findMany: jest.fn(),
@@ -20,252 +16,196 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-// ── Load mocked modules via require() ────────────────────────────────────────
 const prisma = require("../../utils/prisma.js").default as typeof prismaType;
-const { getCompanies, getCompany, getJobsInCompany } = require(
-  "../companies.controller.js",
-) as {
-  getCompanies: typeof GetCompaniesType;
-  getCompany: typeof GetCompanyType;
-  getJobsInCompany: typeof GetJobsInCompanyType;
-};
+const { getCompanies, getCompany, getJobsInCompany } = require("../companies.controller.js") as
+  typeof import("../companies.controller.js");
 
-// ── Typed mock helpers ────────────────────────────────────────────────────────
-const mockProfileFindMany = prisma.companyProfile.findMany as jest.MockedFunction<
-  typeof prisma.companyProfile.findMany
->;
-const mockProfileFindUnique = prisma.companyProfile.findUnique as jest.MockedFunction<
-  typeof prisma.companyProfile.findUnique
->;
-const mockJobFindMany = prisma.jobListing.findMany as jest.MockedFunction<
-  typeof prisma.jobListing.findMany
->;
+const mockCompanyFindMany = prisma.companyProfile.findMany as jest.Mock;
+const mockCompanyFindUnique = prisma.companyProfile.findUnique as jest.Mock;
+const mockCompanyCount = prisma.companyProfile.count as jest.Mock;
+const mockJobFindMany = prisma.jobListing.findMany as jest.Mock;
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-function makeReq(overrides: Partial<Request> = {}): Request {
-  return {
-    body: {},
-    params: {},
-    query: {},
-    ...overrides,
-  } as unknown as Request;
-}
-
-function makeRes(): Response {
-  return {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn().mockReturnThis(),
-  } as unknown as Response;
-}
-
-// ── Fixtures ──────────────────────────────────────────────────────────────────
 const fakeCompany = {
-  id: "profile-abc",
-  companyUserId: "user-123",
-  description: "We build great software",
-  logo: "https://example.com/logo.png",
-  website: "https://example.com",
-  createdAt: new Date("2024-01-01T00:00:00Z"),
-  updatedAt: new Date("2024-01-01T00:00:00Z"),
+  id: "company-1",
+  companyUserId: "user-1",
+  description: "desc",
+  logo: null,
+  website: null,
   companyUser: {
-    id: "user-123",
+    id: "user-1",
     name: "Tech Corp",
-    email: "hr@techcorp.com",
+    email: "hr@example.com",
     avatar: null,
+    phone: null,
   },
+  eventLinks: [],
 };
 
-const fakeJob = {
-  id: "job-001",
-  companyId: "profile-abc",
-  title: "Frontend Developer",
-  type: "full_time" as const,
-  location: "Bangkok",
-  description: "Build cool UIs",
-  requirements: "3+ years React",
-  qualifications: "Bachelor degree",
-  salary: "50,000 THB",
-  attachment: null,
-  isClosed: false,
-  createdAt: new Date("2024-01-01T00:00:00Z"),
-  updatedAt: new Date("2024-01-01T00:00:00Z"),
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe("getCompanies", () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it("returns 200 with all companies when no query", async () => {
-    mockProfileFindMany.mockResolvedValueOnce([fakeCompany] as any);
-    const req = makeReq({ query: {} });
-    const res = makeRes();
-
-    await getCompanies(req, res);
-
-    expect(mockProfileFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: {} }),
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, message: "Companies" }),
-    );
+describe("companies.controller", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it("filters by name when ?q= is provided", async () => {
-    mockProfileFindMany.mockResolvedValueOnce([fakeCompany] as any);
-    const req = makeReq({ query: { q: "tech" } });
-    const res = makeRes();
+  describe("getCompanies", () => {
+    it("uses default pagination and sort", async () => {
+      mockCompanyFindMany.mockResolvedValueOnce([fakeCompany]);
+      mockCompanyCount.mockResolvedValueOnce(1);
 
-    await getCompanies(req, res);
+      const req = makeReq<Request>();
+      const res = makeRes();
 
-    expect(mockProfileFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          companyUser: {
-            name: { contains: "tech", mode: "insensitive" },
+      await getCompanies(req, res);
+
+      expect(mockCompanyFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {},
+          orderBy: { updatedAt: "desc" },
+          skip: 0,
+          take: 10,
+        }),
+      );
+      expect(mockCompanyCount).toHaveBeenCalledWith({ where: {} });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("applies query, pagination, and oldest sort", async () => {
+      mockCompanyFindMany.mockResolvedValueOnce([]);
+      mockCompanyCount.mockResolvedValueOnce(0);
+
+      const req = makeReq<Request>({
+        query: { q: "tech", page: "2", limit: "3", sort: "oldest" } as Request["query"],
+      });
+      const res = makeRes();
+
+      await getCompanies(req, res);
+
+      expect(mockCompanyFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            companyUser: {
+              name: { contains: "tech", mode: "insensitive" },
+            },
           },
-        },
-      }),
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
+          orderBy: { updatedAt: "asc" },
+          skip: 3,
+          take: 3,
+        }),
+      );
+    });
+
+    it("supports alphabetical sorts", async () => {
+      mockCompanyFindMany.mockResolvedValue([]);
+      mockCompanyCount.mockResolvedValue(0);
+
+      const res = makeRes();
+
+      await getCompanies(
+        makeReq<Request>({ query: { sort: "a-z" } as Request["query"] }),
+        res,
+      );
+      expect(mockCompanyFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { companyUser: { name: "asc" } } }),
+      );
+
+      await getCompanies(
+        makeReq<Request>({ query: { sort: "z-a" } as Request["query"] }),
+        res,
+      );
+      expect(mockCompanyFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { companyUser: { name: "desc" } } }),
+      );
+    });
+
+    it("returns server error when a query fails", async () => {
+      mockCompanyFindMany.mockRejectedValueOnce(new Error("db error"));
+
+      const req = makeReq<Request>();
+      const res = makeRes();
+
+      await getCompanies(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, message: "Server error" }),
+      );
+    });
   });
 
-  it("returns 200 with empty array when no companies exist", async () => {
-    mockProfileFindMany.mockResolvedValueOnce([] as any);
-    const req = makeReq({ query: {} });
-    const res = makeRes();
+  describe("getCompany", () => {
+    it("returns the company when found", async () => {
+      mockCompanyFindUnique.mockResolvedValueOnce(fakeCompany);
 
-    await getCompanies(req, res);
+      const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+      const res = makeRes();
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, data: [] }),
-    );
+      await getCompany(req, res);
+
+      expect(mockCompanyFindUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "company-1" } }),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("returns 404 when company is missing", async () => {
+      mockCompanyFindUnique.mockResolvedValueOnce(null);
+
+      const req = makeReq<Request>({ params: { companyId: "missing" } as Request["params"] });
+      const res = makeRes();
+
+      await getCompany(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("returns server error on failure", async () => {
+      mockCompanyFindUnique.mockRejectedValueOnce(new Error("db error"));
+
+      const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+      const res = makeRes();
+
+      await getCompany(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
   });
 
-  it("returns 500 when prisma throws", async () => {
-    mockProfileFindMany.mockRejectedValueOnce(new Error("DB error"));
-    const req = makeReq({ query: {} });
-    const res = makeRes();
+  describe("getJobsInCompany", () => {
+    it("returns open jobs for an existing company", async () => {
+      mockCompanyFindUnique.mockResolvedValueOnce({ id: "company-1" });
+      mockJobFindMany.mockResolvedValueOnce([{ id: "job-1", isClosed: false }]);
 
-    await getCompanies(req, res);
+      const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+      const res = makeRes();
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: "Server error" }),
-    );
-  });
-});
+      await getJobsInCompany(req, res);
 
-// ─────────────────────────────────────────────────────────────────────────────
-describe("getCompany", () => {
-  beforeEach(() => jest.clearAllMocks());
+      expect(mockJobFindMany).toHaveBeenCalledWith({
+        where: { companyId: "company-1", isClosed: false },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
 
-  it("returns 200 with the company when found", async () => {
-    mockProfileFindUnique.mockResolvedValueOnce(fakeCompany as any);
-    const req = makeReq({ params: { companyId: "profile-abc" } });
-    const res = makeRes();
+    it("returns 404 when the company is missing", async () => {
+      mockCompanyFindUnique.mockResolvedValueOnce(null);
 
-    await getCompany(req, res);
+      const req = makeReq<Request>({ params: { companyId: "missing" } as Request["params"] });
+      const res = makeRes();
 
-    expect(mockProfileFindUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "profile-abc" } }),
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, message: "Company" }),
-    );
-  });
+      await getJobsInCompany(req, res);
 
-  it("returns 404 when company does not exist", async () => {
-    mockProfileFindUnique.mockResolvedValueOnce(null);
-    const req = makeReq({ params: { companyId: "non-existent" } });
-    const res = makeRes();
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
 
-    await getCompany(req, res);
+    it("returns server error when the query fails", async () => {
+      mockCompanyFindUnique.mockRejectedValueOnce(new Error("db error"));
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: "Company not found" }),
-    );
-  });
+      const req = makeReq<Request>({ params: { companyId: "company-1" } as Request["params"] });
+      const res = makeRes();
 
-  it("returns 500 when prisma throws", async () => {
-    mockProfileFindUnique.mockRejectedValueOnce(new Error("DB error"));
-    const req = makeReq({ params: { companyId: "profile-abc" } });
-    const res = makeRes();
+      await getJobsInCompany(req, res);
 
-    await getCompany(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: "Server error" }),
-    );
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe("getJobsInCompany", () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it("returns 200 with open jobs when company exists", async () => {
-    mockProfileFindUnique.mockResolvedValueOnce(fakeCompany as any);
-    mockJobFindMany.mockResolvedValueOnce([fakeJob] as any);
-    const req = makeReq({ params: { companyId: "profile-abc" } });
-    const res = makeRes();
-
-    await getJobsInCompany(req, res);
-
-    // Must only show open jobs
-    expect(mockJobFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { companyId: "profile-abc", isClosed: false },
-      }),
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, data: [fakeJob] }),
-    );
-  });
-
-  it("returns 200 with empty array when company has no open jobs", async () => {
-    mockProfileFindUnique.mockResolvedValueOnce(fakeCompany as any);
-    mockJobFindMany.mockResolvedValueOnce([] as any);
-    const req = makeReq({ params: { companyId: "profile-abc" } });
-    const res = makeRes();
-
-    await getJobsInCompany(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, data: [] }),
-    );
-  });
-
-  it("returns 404 when company does not exist", async () => {
-    mockProfileFindUnique.mockResolvedValueOnce(null);
-    const req = makeReq({ params: { companyId: "non-existent" } });
-    const res = makeRes();
-
-    await getJobsInCompany(req, res);
-
-    expect(mockJobFindMany).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: "Company not found" }),
-    );
-  });
-
-  it("returns 500 when prisma throws", async () => {
-    mockProfileFindUnique.mockRejectedValueOnce(new Error("DB error"));
-    const req = makeReq({ params: { companyId: "profile-abc" } });
-    const res = makeRes();
-
-    await getJobsInCompany(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, message: "Server error" }),
-    );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
   });
 });

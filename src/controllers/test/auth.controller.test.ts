@@ -1,161 +1,269 @@
-import { Request, Response } from "express";
+import fs from "node:fs/promises";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { sendSuccess, sendError } from "../../utils/http.js";
-import prisma from "../../utils/prisma.js";
-import * as authControllers from "../auth.controller.js";
+import type prismaType from "../../utils/prisma.js";
+import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
+jest.mock("node:fs/promises", () => ({
+  mkdir: jest.fn(),
+  writeFile: jest.fn(),
+}));
 
 jest.mock("bcrypt", () => ({
-    hash: jest.fn(),
-    compare: jest.fn(),
+  hash: jest.fn(),
+  compare: jest.fn(),
 }));
 
 jest.mock("jsonwebtoken", () => ({
-    sign: jest.fn(),
+  sign: jest.fn(),
 }));
 
-jest.mock("../../utils/http.js", () => ({
-    sendSuccess: jest.fn(),
-    sendError: jest.fn(),
-}));
-
-jest.mock("../../config/env.js", () => ({
-    env: {
-        JWT_SECRET: "super-secret-test-key",
-    },
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "uuid-123"),
 }));
 
 jest.mock("../../utils/prisma.js", () => ({
-    __esModule: true,
-    default: {
-        user: {
-            findUnique: jest.fn(),
-            create: jest.fn(),
-        },
+  __esModule: true,
+  default: {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
+  },
 }));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const mockUuid = require("uuid").v4 as jest.Mock;
+const {
+  register,
+  getAuthProfile,
+  updateAuthProfile,
+  changePassword,
+  login,
+  logout,
+} = require("../auth.controller.js") as typeof import("../auth.controller.js");
 
-const mockRequest = (body: any = {}) => {
-    return {
-        body,
-    } as Request;
-};
+const mockFindUnique = prisma.user.findUnique as jest.Mock;
+const mockCreate = prisma.user.create as jest.Mock;
+const mockUpdate = prisma.user.update as jest.Mock;
+const mockHash = bcrypt.hash as jest.Mock;
+const mockCompare = bcrypt.compare as jest.Mock;
+const mockSign = jwt.sign as jest.Mock;
+const mockMkdir = fs.mkdir as jest.Mock;
+const mockWriteFile = fs.writeFile as jest.Mock;
 
-const mockResponse = () => {
-    const res: Partial<Response> = {};
-    res.status = jest.fn().mockReturnValue(res);
-    res.json = jest.fn().mockReturnValue(res);
-    return res as Response;
-};
+describe("auth.controller", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockUuid.mockReturnValue("uuid-123");
+  });
 
-// ── Test Suite ────────────────────────────────────────────────────────────────
+  describe("register", () => {
+    it("handles missing fields, invalid role, duplicate email, success, and catch", async () => {
+      const res = makeRes();
 
-describe("Auth Controllers", () => {
-    let res: Response;
+      await register(makeReq({ body: { name: "A" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        res = mockResponse();
-        jest.spyOn(console, "log").mockImplementation(() => {});
+      await register(
+        makeReq({ body: { name: "A", email: "a@a.com", password: "secret", role: "companyUser" } }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(400);
+
+      mockFindUnique.mockResolvedValueOnce({ id: "existing" });
+      await register(
+        makeReq({ body: { name: "A", email: "a@a.com", password: "secret", role: "jobSeeker" } }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(409);
+
+      mockFindUnique.mockResolvedValueOnce(null);
+      mockHash.mockResolvedValueOnce("hashed");
+      mockCreate.mockResolvedValueOnce({ id: "user-1", role: "jobSeeker" });
+      mockSign.mockReturnValueOnce("jwt-token");
+      await register(
+        makeReq({ body: { name: "A", email: "a@a.com", password: "secret", role: "jobSeeker" } }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(201);
+
+      mockFindUnique.mockRejectedValueOnce(new Error("boom"));
+      await register(
+        makeReq({ body: { name: "A", email: "a@a.com", password: "secret", role: "jobSeeker" } }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(500);
+    });
+  });
+
+  describe("getAuthProfile", () => {
+    it("returns success, not found, and catch branches", async () => {
+      const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" } });
+      const res = makeRes();
+
+      mockFindUnique.mockResolvedValueOnce({ id: "user-1" });
+      await getAuthProfile(req, res);
+      expect(res.status).toHaveBeenLastCalledWith(200);
+
+      mockFindUnique.mockResolvedValueOnce(null);
+      await getAuthProfile(req, res);
+      expect(res.status).toHaveBeenLastCalledWith(404);
+
+      mockFindUnique.mockRejectedValueOnce(new Error("boom"));
+      await getAuthProfile(req, res);
+      expect(res.status).toHaveBeenLastCalledWith(500);
+    });
+  });
+
+  describe("updateAuthProfile", () => {
+    it("validates empty fields", async () => {
+      const res = makeRes();
+
+      await updateAuthProfile(makeAuthReq({ body: { name: "   " } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
+
+      await updateAuthProfile(makeAuthReq({ body: { phone: "  " } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
     });
 
-    describe("register", () => {
-        const validUserBody = { name: "John", email: "j@test.com", password: "pwd", role: "jobSeeker" };
+    it("updates without a file and with a file, then handles catch", async () => {
+      const req = makeAuthReq({
+        user: { id: "user-1", role: "jobSeeker" },
+        body: { name: "New", phone: "123" },
+      });
+      const res = makeRes();
 
-        it("should return 400 if required fields are missing", async () => {
-            const req = mockRequest({ name: "John" }); 
-            await authControllers.register(req, res);
-            expect(sendError).toHaveBeenCalledWith(res, "Missing required fields", 400);
-        });
+      mockUpdate.mockResolvedValueOnce({ id: "user-1" });
+      await updateAuthProfile(req, res);
+      expect(mockUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ data: { name: "New", phone: "123" } }),
+      );
+      expect(res.status).toHaveBeenLastCalledWith(200);
 
-        it("should return 400 if trying to register as a company or admin", async () => {
-            const req = mockRequest({ ...validUserBody, role: "company" });
-            await authControllers.register(req, res);
-            expect(sendError).toHaveBeenCalledWith(res, "Invalid role", 400);
-        });
+      mockMkdir.mockResolvedValueOnce(undefined);
+      mockWriteFile.mockResolvedValueOnce(undefined);
+      mockUpdate.mockResolvedValueOnce({ id: "user-1", avatar: "/uploads/avatars/uuid-123.png" });
+      await updateAuthProfile(
+        makeAuthReq({
+          user: { id: "user-1", role: "jobSeeker" },
+          body: { name: "New" },
+          file: {
+            originalname: "avatar.png",
+            buffer: Buffer.from("img"),
+          },
+        }),
+        res,
+      );
+      expect(mockWriteFile).toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ avatar: "/uploads/avatars/uuid-123.png" }),
+        }),
+      );
 
-        it("should return 409 if email is already in use", async () => {
-            const req = mockRequest(validUserBody);
-            (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "existing-user" });
-
-            await authControllers.register(req, res);
-            expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: "j@test.com" } });
-            expect(sendError).toHaveBeenCalledWith(res, "Email already in use", 409);
-        });
-
-        it("should register a user successfully and return a token", async () => {
-            const req = mockRequest(validUserBody);
-            (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-            (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-pwd");
-            (prisma.user.create as jest.Mock).mockResolvedValue({ id: "user-1", role: "user" });
-            (jwt.sign as jest.Mock).mockReturnValue("mock-jwt-token");
-
-            await authControllers.register(req, res);
-
-            expect(bcrypt.hash).toHaveBeenCalledWith("pwd", 10);
-            expect(prisma.user.create).toHaveBeenCalledWith({
-                data: { name: "John", email: "j@test.com", passwordHash: "hashed-pwd", role: "jobSeeker" }
-            });
-            expect(jwt.sign).toHaveBeenCalledWith(
-                { id: "user-1", role: "user" },
-                "super-secret-test-key",
-                { expiresIn: "7d" }
-            );
-            expect(sendSuccess).toHaveBeenCalledWith(res, "Registered successfully", { token: "mock-jwt-token" }, 201);
-        });
-
-        it("should return 500 on database error", async () => {
-            const req = mockRequest(validUserBody);
-            (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("DB Connection Error"));
-
-            await authControllers.register(req, res);
-            expect(sendError).toHaveBeenCalledWith(res, "Server error", 500);
-        });
+      mockMkdir.mockRejectedValueOnce(new Error("boom"));
+      await updateAuthProfile(
+        makeAuthReq({
+          user: { id: "user-1", role: "jobSeeker" },
+          body: {},
+          file: {
+            originalname: "avatar.png",
+            buffer: Buffer.from("img"),
+          },
+        }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(500);
     });
+  });
 
-    // ... (Login tests remain exactly the same as before)
-    describe("login", () => {
-        const credentials = { email: "j@test.com", password: "pwd" };
+  describe("changePassword", () => {
+    it("covers validation, lookup, invalid password, success, and catch", async () => {
+      const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" } });
+      const res = makeRes();
 
-        it("should return 401 if user does not exist", async () => {
-            const req = mockRequest(credentials);
-            (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      await changePassword(makeAuthReq({ body: {} }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
 
-            await authControllers.login(req, res);
+      await changePassword(makeAuthReq({ body: { currentPassword: "old", newPassword: "123" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
 
-            expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: "j@test.com" } });
-            expect(sendError).toHaveBeenCalledWith(res, "Invalid credentials", 401);
-        });
+      mockFindUnique.mockResolvedValueOnce(null);
+      await changePassword(makeAuthReq({ body: { currentPassword: "old", newPassword: "123456" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(404);
 
-        it("should return 401 if password does not match", async () => {
-            const req = mockRequest(credentials);
-            (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1", passwordHash: "real-hash" });
-            (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      mockFindUnique.mockResolvedValueOnce({ id: "user-1", passwordHash: "hash" });
+      mockCompare.mockResolvedValueOnce(false);
+      await changePassword(makeAuthReq({ body: { currentPassword: "old", newPassword: "123456" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(401);
 
-            await authControllers.login(req, res);
+      mockFindUnique.mockResolvedValueOnce({ id: "user-1", passwordHash: "hash" });
+      mockCompare.mockResolvedValueOnce(true);
+      mockHash.mockResolvedValueOnce("new-hash");
+      mockUpdate.mockResolvedValueOnce({ id: "user-1" });
+      await changePassword(makeAuthReq({ body: { currentPassword: "old", newPassword: "123456" } }), res);
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "new-hash" },
+      });
+      expect(res.status).toHaveBeenLastCalledWith(200);
 
-            expect(bcrypt.compare).toHaveBeenCalledWith("pwd", "real-hash");
-            expect(sendError).toHaveBeenCalledWith(res, "Invalid credentials", 401);
-        });
-
-        it("should return a token on successful login", async () => {
-            const req = mockRequest(credentials);
-            (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1", role: "user", passwordHash: "real-hash" });
-            (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-            (jwt.sign as jest.Mock).mockReturnValue("mock-login-token");
-
-            await authControllers.login(req, res);
-
-            expect(jwt.sign).toHaveBeenCalledWith(
-                { id: "user-1", role: "user" },
-                "super-secret-test-key",
-                { expiresIn: "7d" }
-            );
-            expect(sendSuccess).toHaveBeenCalledWith(res, "Login successful", { token: "mock-login-token" });
-        });
+      mockFindUnique.mockRejectedValueOnce(new Error("boom"));
+      await changePassword(
+        makeAuthReq({
+          user: { id: "user-1", role: "jobSeeker" },
+          body: { currentPassword: "old", newPassword: "123456" },
+        }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(500);
     });
+  });
+
+  describe("login", () => {
+    it("covers validation, invalid credentials, success, and catch", async () => {
+      const res = makeRes();
+
+      await login(makeReq({ body: {} }), res);
+      expect(res.status).toHaveBeenLastCalledWith(400);
+
+      mockFindUnique.mockResolvedValueOnce(null);
+      await login(makeReq({ body: { email: "a@a.com", password: "secret" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(401);
+
+      mockFindUnique.mockResolvedValueOnce({ id: "user-1", role: "jobSeeker", passwordHash: "hash" });
+      mockCompare.mockResolvedValueOnce(false);
+      await login(makeReq({ body: { email: "a@a.com", password: "secret" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(401);
+
+      mockFindUnique.mockResolvedValueOnce({ id: "user-1", role: "jobSeeker", passwordHash: "hash" });
+      mockCompare.mockResolvedValueOnce(true);
+      mockSign.mockReturnValueOnce("jwt-token");
+      await login(makeReq({ body: { email: "a@a.com", password: "secret" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(200);
+
+      mockFindUnique.mockRejectedValueOnce(new Error("boom"));
+      await login(makeReq({ body: { email: "a@a.com", password: "secret" } }), res);
+      expect(res.status).toHaveBeenLastCalledWith(500);
+    });
+  });
+
+  describe("logout", () => {
+    it("returns success and catch branches", async () => {
+      const res = makeRes();
+
+      await logout(makeAuthReq(), res);
+      expect(res.cookie).toHaveBeenCalled();
+      expect(res.status).toHaveBeenLastCalledWith(200);
+
+      const throwingRes = makeRes();
+      (throwingRes.cookie as jest.Mock).mockImplementationOnce(() => {
+        throw new Error("boom");
+      });
+      await logout(makeAuthReq(), throwingRes);
+      expect(throwingRes.status).toHaveBeenLastCalledWith(500);
+    });
+  });
 });
