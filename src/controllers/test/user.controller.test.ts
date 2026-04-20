@@ -5,6 +5,7 @@ import { makeAuthReq, makeRes } from "../../test/helpers.js";
 jest.mock("node:fs/promises", () => ({
   mkdir: jest.fn(),
   writeFile: jest.fn(),
+  unlink: jest.fn(), // <-- ADDED
 }));
 
 jest.mock("uuid", () => ({
@@ -22,7 +23,7 @@ jest.mock("../../utils/prisma.js", () => ({
     eventRegistration: {
       findMany: jest.fn(),
       count: jest.fn(),
-      findFirst: jest.fn(),
+      findUnique: jest.fn(),
       delete: jest.fn(),
     },
   },
@@ -38,15 +39,21 @@ const mockUserUpdate = prisma.user.update as jest.Mock;
 const mockUserDelete = prisma.user.delete as jest.Mock;
 const mockRegFindMany = prisma.eventRegistration.findMany as jest.Mock;
 const mockRegCount = prisma.eventRegistration.count as jest.Mock;
-const mockRegFindFirst = prisma.eventRegistration.findFirst as jest.Mock;
+const mockRegFindUnique = prisma.eventRegistration.findUnique as jest.Mock;
 const mockRegDelete = prisma.eventRegistration.delete as jest.Mock;
 const mockMkdir = fs.mkdir as jest.Mock;
 const mockWriteFile = fs.writeFile as jest.Mock;
+const mockUnlink = fs.unlink as jest.Mock; // <-- ADDED
 
 describe("user.controller", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockUuid.mockReturnValue("uuid-123");
+    jest.spyOn(console, "error").mockImplementation(() => undefined); // Silence console.errors in tests
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("covers getMe branches", async () => {
@@ -81,28 +88,63 @@ describe("user.controller", () => {
       expect.objectContaining({ data: { name: "New", phone: "123" } }),
     );
 
+    // File Provided + User has existing avatar (unlink succeeds)
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
+    mockUnlink.mockResolvedValueOnce(undefined);
     mockMkdir.mockResolvedValueOnce(undefined);
     mockWriteFile.mockResolvedValueOnce(undefined);
-    mockUserUpdate.mockResolvedValueOnce({ id: "user-1", avatar: "/uploads/avatars/uuid-123.png" });
+    mockUserUpdate.mockResolvedValueOnce({
+      id: "user-1",
+      avatar: "/uploads/avatars/uuid-123.png",
+    });
     await updateMe(
       makeAuthReq({
         body: { name: "New" },
-        file: { originalname: "avatar.png", buffer: Buffer.from("img") },
+        file: {
+          originalname: "avatar.png",
+          buffer: Buffer.from("img"),
+        } as Express.Multer.File,
       }),
       res,
     );
+    expect(mockUnlink).toHaveBeenCalled();
     expect(mockWriteFile).toHaveBeenCalled();
     expect(mockUserUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ avatar: "/uploads/avatars/uuid-123.png" }),
+        data: expect.objectContaining({
+          avatar: "/uploads/avatars/uuid-123.png",
+        }),
       }),
     );
 
+    // File Provided + User has existing avatar (unlink throws error, is caught safely)
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
+    mockUnlink.mockRejectedValueOnce(new Error("File not found on disk"));
+    mockMkdir.mockResolvedValueOnce(undefined);
+    mockWriteFile.mockResolvedValueOnce(undefined);
+    mockUserUpdate.mockResolvedValueOnce({ id: "user-1" });
+    await updateMe(
+      makeAuthReq({
+        body: {},
+        file: {
+          originalname: "avatar.png",
+          buffer: Buffer.from("img"),
+        } as Express.Multer.File,
+      }),
+      res,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(200);
+
+    // File Provided + No existing avatar + mkdir fails -> 500 error
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: null });
     mockMkdir.mockRejectedValueOnce(new Error("boom"));
     await updateMe(
       makeAuthReq({
         body: {},
-        file: { originalname: "avatar.png", buffer: Buffer.from("img") },
+        file: {
+          originalname: "avatar.png",
+          buffer: Buffer.from("img"),
+        } as Express.Multer.File,
       }),
       res,
     );
@@ -128,7 +170,10 @@ describe("user.controller", () => {
   });
 
   it("covers getRegistrations defaults, clamping, and catch", async () => {
-    const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" }, query: {} });
+    const req = makeAuthReq({
+      user: { id: "user-1", role: "jobSeeker" },
+      query: {},
+    });
     const res = makeRes();
 
     mockRegFindMany.mockResolvedValueOnce([]);
@@ -163,17 +208,17 @@ describe("user.controller", () => {
     });
     const res = makeRes();
 
-    mockRegFindFirst.mockResolvedValueOnce(null);
+    mockRegFindUnique.mockResolvedValueOnce(null);
     await deleteRegistration(req, res);
     expect(res.status).toHaveBeenLastCalledWith(404);
 
-    mockRegFindFirst.mockResolvedValueOnce({ id: "reg-1" });
+    mockRegFindUnique.mockResolvedValueOnce({ id: "reg-1" });
     mockRegDelete.mockResolvedValueOnce({ id: "reg-1" });
     await deleteRegistration(req, res);
     expect(mockRegDelete).toHaveBeenCalledWith({ where: { id: "reg-1" } });
     expect(res.status).toHaveBeenLastCalledWith(200);
 
-    mockRegFindFirst.mockRejectedValueOnce(new Error("boom"));
+    mockRegFindUnique.mockRejectedValueOnce(new Error("boom"));
     await deleteRegistration(req, res);
     expect(res.status).toHaveBeenLastCalledWith(500);
   });
