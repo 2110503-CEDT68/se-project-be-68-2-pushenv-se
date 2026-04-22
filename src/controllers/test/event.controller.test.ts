@@ -55,7 +55,7 @@ describe("events.controller", () => {
   });
 
   describe("getPublishedEvents", () => {
-    it("uses defaults with no search", async () => {
+    it("uses newest sort by default with no search", async () => {
       mockEventFindMany.mockResolvedValueOnce([event]);
       mockEventCount.mockResolvedValueOnce(1);
 
@@ -66,7 +66,7 @@ describe("events.controller", () => {
 
       expect(mockEventFindMany).toHaveBeenCalledWith({
         where: { isPublished: true },
-        orderBy: { startDate: "asc" },
+        orderBy: { startDate: "desc" },
         skip: 0,
         take: 20,
       });
@@ -96,6 +96,45 @@ describe("events.controller", () => {
       expect(where.OR[0]?.name.contains).toHaveLength(100);
       expect(mockEventFindMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 4, take: 2 }),
+      );
+    });
+
+    it("supports sort variants", async () => {
+      mockEventFindMany.mockResolvedValue([]);
+      mockEventCount.mockResolvedValue(0);
+
+      const res = makeRes();
+
+      await getPublishedEvents(
+        makeReq<Request>({ query: { sort: "oldest" } as Request["query"] }),
+        res,
+      );
+      expect(mockEventFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { startDate: "asc" } }),
+      );
+
+      await getPublishedEvents(
+        makeReq<Request>({ query: { sort: "newest" } as Request["query"] }),
+        res,
+      );
+      expect(mockEventFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { startDate: "desc" } }),
+      );
+
+      await getPublishedEvents(
+        makeReq<Request>({ query: { sort: "a-z" } as Request["query"] }),
+        res,
+      );
+      expect(mockEventFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { name: "asc" } }),
+      );
+
+      await getPublishedEvents(
+        makeReq<Request>({ query: { sort: "z-a" } as Request["query"] }),
+        res,
+      );
+      expect(mockEventFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: { name: "desc" } }),
       );
     });
 

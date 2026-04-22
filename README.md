@@ -58,10 +58,41 @@ Start here when setting up the backend from scratch.
 - `pnpm start`
 - `pnpm typecheck`
 - `pnpm prisma:generate`
+- `pnpm prisma:studio`
 - `pnpm prisma:migrate:dev`
 - `pnpm prisma:migrate:deploy`
 - `pnpm db:push`
 - `pnpm compose:up`
+
+## Prisma Studio
+
+Use Prisma Studio to inspect and edit local database records in a browser.
+
+1. Make sure the local database is running:
+
+   ```bash
+   pnpm compose:up
+   ```
+
+2. If needed, generate the Prisma client:
+
+   ```bash
+   pnpm prisma:generate
+   ```
+
+3. Start Prisma Studio:
+
+   ```bash
+   pnpm prisma:studio
+   ```
+
+4. Open the URL shown in the terminal. Prisma Studio uses the default local port unless you pass a custom one through the underlying Prisma CLI.
+
+Notes:
+
+- Run the command inside `backend/`.
+- Prisma Studio reads the database connection from `prisma.config.ts` and `.env`.
+- If you only need a one-off command without the package script, `pnpm exec prisma studio` works too.
 
 ## Development Flow
 

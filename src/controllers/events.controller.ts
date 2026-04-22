@@ -38,6 +38,7 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
       Math.max(1, parseInt(req.query["limit"] as string) || 20),
     );
     const search = (req.query["search"] as string | undefined)?.slice(0, 100);
+    const sort = req.query["sort"] as string | undefined;
     const skip = (page - 1) * limit;
 
     const where: Prisma.EventWhereInput = { isPublished: true };
@@ -49,10 +50,15 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
       ];
     }
 
+    let orderBy: Prisma.EventOrderByWithRelationInput = { startDate: "desc" };
+    if (sort === "oldest") orderBy = { startDate: "asc" };
+    else if (sort === "a-z") orderBy = { name: "asc" };
+    else if (sort === "z-a") orderBy = { name: "desc" };
+
     const [events, total] = await Promise.all([
       prisma.event.findMany({
         where,
-        orderBy: { startDate: "asc" },
+        orderBy,
         skip,
         take: limit,
       }),
