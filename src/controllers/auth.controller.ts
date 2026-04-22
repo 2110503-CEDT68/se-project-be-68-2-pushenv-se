@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { saveAvatarFile } from "../utils/uploads.js";
+import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
 import { env } from "../config/env.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
@@ -108,6 +108,23 @@ export const updateAuthProfile = async (
     if (phone !== undefined) data.phone = phone;
 
     if (req.file) {
+      const existing = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { avatar: true },
+      });
+
+      if (existing?.avatar) {
+        try {
+          await deleteStoredUpload(existing.avatar);
+        } catch (error) {
+          // Keep profile updates working even if an old file is already missing.
+          const fileError = error as NodeJS.ErrnoException;
+          if (fileError.code !== "ENOENT") {
+            console.error("Failed to delete old avatar:", error);
+          }
+        }
+      }
+
       data.avatar = await saveAvatarFile(req.file);
     }
 

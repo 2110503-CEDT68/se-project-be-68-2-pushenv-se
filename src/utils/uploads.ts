@@ -36,3 +36,13 @@ export async function saveAvatarFile(
   );
   return StorageService.relativeUrl("avatars", fileName);
 }
+
+export async function deleteStoredUpload(relativeUrl?: string | null) {
+  if (!relativeUrl?.startsWith("/uploads/")) {
+    return;
+  }
+
+  const relativePath = relativeUrl.replace(/^\/+/, "");
+  const absolutePath = path.join(process.cwd(), relativePath);
+  await fs.unlink(absolutePath);
+}

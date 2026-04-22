@@ -89,7 +89,7 @@ describe("user.controller", () => {
     );
 
     // File Provided + User has existing avatar (unlink succeeds)
-    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "/uploads/avatars/old.png" });
     mockUnlink.mockResolvedValueOnce(undefined);
     mockMkdir.mockResolvedValueOnce(undefined);
     mockWriteFile.mockResolvedValueOnce(undefined);
@@ -118,8 +118,8 @@ describe("user.controller", () => {
     );
 
     // File Provided + User has existing avatar (unlink throws error, is caught safely)
-    mockUserFindUnique.mockResolvedValueOnce({ avatar: "old.png" });
-    mockUnlink.mockRejectedValueOnce(new Error("File not found on disk"));
+    mockUserFindUnique.mockResolvedValueOnce({ avatar: "/uploads/avatars/old.png" });
+    mockUnlink.mockRejectedValueOnce(Object.assign(new Error("File not found on disk"), { code: "ENOENT" }));
     mockMkdir.mockResolvedValueOnce(undefined);
     mockWriteFile.mockResolvedValueOnce(undefined);
     mockUserUpdate.mockResolvedValueOnce({ id: "user-1" });

@@ -2,9 +2,7 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { saveAvatarFile } from "../utils/uploads.js";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -55,10 +53,12 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
 
       if (existing?.avatar) {
         try {
-          const filePath = path.join(process.cwd(), "uploads", existing.avatar); 
-          await fs.unlink(filePath);
-        } catch (err) {
-          console.error("Failed to delete old avatar:", err);
+          await deleteStoredUpload(existing.avatar);
+        } catch (error) {
+          const fileError = error as NodeJS.ErrnoException;
+          if (fileError.code !== "ENOENT") {
+            console.error("Failed to delete old avatar:", error);
+          }
         }
       }
 

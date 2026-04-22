@@ -7,6 +7,7 @@ import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 jest.mock("node:fs/promises", () => ({
   mkdir: jest.fn(),
   writeFile: jest.fn(),
+  unlink: jest.fn(),
 }));
 
 jest.mock("bcrypt", () => ({
@@ -52,6 +53,7 @@ const mockCompare = bcrypt.compare as jest.Mock;
 const mockSign = jwt.sign as jest.Mock;
 const mockMkdir = fs.mkdir as jest.Mock;
 const mockWriteFile = fs.writeFile as jest.Mock;
+const mockUnlink = fs.unlink as jest.Mock;
 
 describe("auth.controller", () => {
   beforeEach(() => {
@@ -142,6 +144,8 @@ describe("auth.controller", () => {
       );
       expect(res.status).toHaveBeenLastCalledWith(200);
 
+      mockFindUnique.mockResolvedValueOnce({ avatar: "/uploads/avatars/old.png" });
+      mockUnlink.mockResolvedValueOnce(undefined);
       mockMkdir.mockResolvedValueOnce(undefined);
       mockWriteFile.mockResolvedValueOnce(undefined);
       mockUpdate.mockResolvedValueOnce({ id: "user-1", avatar: "/uploads/avatars/uuid-123.png" });
@@ -152,16 +156,35 @@ describe("auth.controller", () => {
           file: {
             originalname: "avatar.png",
             buffer: Buffer.from("img"),
-          },
+          } as Express.Multer.File,
         }),
         res,
       );
+      expect(mockUnlink).toHaveBeenCalled();
       expect(mockWriteFile).toHaveBeenCalled();
       expect(mockUpdate).toHaveBeenLastCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ avatar: "/uploads/avatars/uuid-123.png" }),
         }),
       );
+
+      mockFindUnique.mockResolvedValueOnce({ avatar: "/uploads/avatars/missing.png" });
+      mockUnlink.mockRejectedValueOnce(Object.assign(new Error("missing"), { code: "ENOENT" }));
+      mockMkdir.mockResolvedValueOnce(undefined);
+      mockWriteFile.mockResolvedValueOnce(undefined);
+      mockUpdate.mockResolvedValueOnce({ id: "user-1", avatar: "/uploads/avatars/uuid-123.png" });
+      await updateAuthProfile(
+        makeAuthReq({
+          user: { id: "user-1", role: "jobSeeker" },
+          body: {},
+          file: {
+            originalname: "avatar.png",
+            buffer: Buffer.from("img"),
+          } as Express.Multer.File,
+        }),
+        res,
+      );
+      expect(res.status).toHaveBeenLastCalledWith(200);
 
       mockMkdir.mockRejectedValueOnce(new Error("boom"));
       await updateAuthProfile(
@@ -171,7 +194,7 @@ describe("auth.controller", () => {
           file: {
             originalname: "avatar.png",
             buffer: Buffer.from("img"),
-          },
+          } as Express.Multer.File,
         }),
         res,
       );

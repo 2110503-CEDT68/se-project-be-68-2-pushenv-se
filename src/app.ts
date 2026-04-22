@@ -12,6 +12,7 @@ import { swaggerSpec } from "./utils/swagger.js";
 
 export function createApp() {
   const app = express();
+  const uploadsDirectory = path.join(process.cwd(), "uploads");
 
   app.use(
     cors({
@@ -23,7 +24,15 @@ export function createApp() {
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  app.use(
+    "/uploads",
+    express.static(uploadsDirectory, {
+      setHeaders: (response) => {
+        response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        response.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+      },
+    }),
+  );
   app.use("/api/v1", apiRouter);
   app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use(notFoundHandler);
