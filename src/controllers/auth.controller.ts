@@ -43,7 +43,13 @@ export const register = async (req: Request, res: Response) => {
     const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
       expiresIn: "7d",
     });
-    return sendSuccess(res, "Registered successfully", { token }, 201);
+    res.cookie("job-fair-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return sendSuccess(res, "Registered successfully", { user: { id: user.id, role: user.role } }, 201);
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -67,7 +73,13 @@ export const login = async (req: Request, res: Response) => {
     const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
       expiresIn: "7d",
     });
-    return sendSuccess(res, "Login successful", { token });
+    res.cookie("job-fair-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return sendSuccess(res, "Login successful", { user: { id: user.id, role: user.role } });
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -171,9 +183,10 @@ export const changePassword = async (
 // POST /auth/logout
 export const logout = async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    res.cookie("token", "none", {
-      expires: new Date(Date.now() + 10 * 1000),
+    res.clearCookie("job-fair-token", {
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
     return sendSuccess(res, "Logout successful", null);
   } catch {

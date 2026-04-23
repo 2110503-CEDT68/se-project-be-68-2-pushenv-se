@@ -17,12 +17,11 @@ export function requireAuth(
   response: Response,
   next: NextFunction,
 ) {
-  const header = request.header("Authorization");
-  if (!header?.startsWith("Bearer ")) {
+  const token = request.cookies?.["job-fair-token"];
+  if (!token) {
     return sendError(response, "Unauthorized", 401);
   }
   try {
-    const token = header.replace("Bearer ", "");
     request.user = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
     return next();
   } catch {
