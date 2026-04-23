@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.js";
 import {
-    getAccounts, createAccount, updateAccount, deleteAccount,
-    getCompanies, updateCompany,
-    getEvents, createEvent, updateEvent, deleteEvent,
+    getAccounts, getAccountById, createAccount, updateAccount, deleteAccount,
+    getCompanies, getCompanyById, updateCompany,
+    getEvents, getEventById, createEvent, updateEvent, deleteEvent,
     publishEvent, addCompanyToEvent, removeCompanyFromEvent,
     getEventRegisteredUsers,
 } from "../../controllers/admin.controller.js";
@@ -78,6 +78,7 @@ adminRouter.use(requireAuth, requireRole(["systemAdmin"]));
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/accounts", getAccounts);
+adminRouter.get("/accounts/:id", getAccountById);
 
 /**
  * @openapi
@@ -307,6 +308,7 @@ adminRouter.delete("/accounts/:id", deleteAccount);
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/companies", getCompanies);
+adminRouter.get("/companies/:id", getCompanyById);
 
 /**
  * @openapi
@@ -417,6 +419,7 @@ adminRouter.put("/companies/:id", updateCompany);
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/events", getEvents);
+adminRouter.get("/events/:id", getEventById);
 
 /**
  * @openapi

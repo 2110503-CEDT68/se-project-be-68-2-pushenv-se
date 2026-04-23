@@ -57,6 +57,51 @@ export const getAccounts = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+// GET /admin/accounts/:id
+export const getAccountById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...safeUserSelect,
+        eventRegistrations: {
+          select: {
+            id: true,
+            registeredAt: true,
+            event: {
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                location: true,
+                isPublished: true,
+              },
+            },
+          },
+          orderBy: { registeredAt: "desc" },
+        },
+        companyProfile: {
+          select: {
+            id: true,
+            description: true,
+            logo: true,
+            website: true,
+            _count: { select: { jobs: true } },
+          },
+        },
+      },
+    });
+
+    if (!user) return sendError(res, "Account not found", 404);
+    return sendSuccess(res, "Account details", user);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
 // POST /admin/accounts
 export const createAccount = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -184,6 +229,45 @@ export const getCompanies = async (req: AuthenticatedRequest, res: Response) => 
   }
 };
 
+// GET /admin/companies/:id
+export const getCompanyById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+
+    const company = await prisma.companyProfile.findUnique({
+      where: { id },
+      include: {
+        companyUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            phone: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        eventLinks: {
+          include: {
+            event: {
+              include: {
+                _count: { select: { registrations: true, companies: true } },
+              },
+            },
+          },
+        },
+        _count: { select: { jobs: true } },
+      },
+    });
+
+    if (!company) return sendError(res, "Company not found", 404);
+    return sendSuccess(res, "Company details", company);
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
 // PUT /admin/companies/:id  (id = companyProfile.id)
 export const updateCompany = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -243,6 +327,43 @@ export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
       limit,
       totalPages: Math.ceil(total / limit),
     });
+  } catch {
+    return sendError(res, "Server error", 500);
+  }
+};
+
+// GET /admin/events/:id
+export const getEventById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = req.params["id"] as string;
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        companies: {
+          include: {
+            company: {
+              include: {
+                companyUser: {
+                  select: { id: true, name: true, email: true, phone: true },
+                },
+              },
+            },
+          },
+        },
+        registrations: {
+          include: {
+            jobSeeker: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+        _count: { select: { registrations: true, companies: true } },
+      },
+    });
+
+    if (!event) return sendError(res, "Event not found", 404);
+    return sendSuccess(res, "Event details", event);
   } catch {
     return sendError(res, "Server error", 500);
   }
