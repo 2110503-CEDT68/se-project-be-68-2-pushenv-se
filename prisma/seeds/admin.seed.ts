@@ -3,7 +3,8 @@ import bcrypt from 'bcrypt';
 
 export async function seedAdmin(prisma: PrismaClient) {
   console.log('Seeding Admin...');
-  const passwordHash = await bcrypt.hash('password123', 10);
+  const password = process.env.SEED_ADMIN_PASSWORD || 'password123';
+  const passwordHash = await bcrypt.hash(password, 10);
   return await prisma.user.upsert({
     where: { email: 'admin@jobfair.com' },
     update: {},
