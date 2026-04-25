@@ -74,6 +74,7 @@ describe("notFoundHandler", () => {
 describe("upload middleware", () => {
   function makeUploadApp() {
     const app = express();
+    app.disable("x-powered-by");
 
     app.post("/upload", upload.single("file"), (_req, res) => {
       res.status(200).json({ ok: true });
