@@ -27,6 +27,9 @@ importers:
       cors:
         specifier: ^2.8.6
         version: 2.8.6
+      csrf-csrf:
+        specifier: ^4.0.3
+        version: 4.0.3
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1526,6 +1529,9 @@ packages:
   crypto-browserify@3.12.1:
     resolution: {integrity: sha512-r4ESw/IlusD17lgQi1O20Fa3qNnsckR126TdUuBgAu7GBYSIPvdNyONd3Zrxh0xCwA4+6w/TDArBPsMvhur+KQ==}
     engines: {node: '>= 0.10'}
+
+  csrf-csrf@4.0.3:
+    resolution: {integrity: sha512-DaygOzelL4Qo1pHwI9LPyZL+X2456/OzpT596kNeZGiTSqKVDOk/9PPJ+FjzZacjMUEusOHw3WJKe1RW4iUhrw==}
 
   css-color-keywords@1.0.0:
     resolution: {integrity: sha512-FyyrDHZKEjXDpNJYvVsV960FiqQyXc/LlYmsxl2BcdMb2WPx0OGRVgTg55rPSyLSNMqP52R9r8geSp7apN3Ofg==}
@@ -5101,6 +5107,10 @@ snapshots:
       public-encrypt: 4.0.3
       randombytes: 2.1.0
       randomfill: 1.0.4
+
+  csrf-csrf@4.0.3:
+    dependencies:
+      http-errors: 2.0.1
 
   css-color-keywords@1.0.0: {}
 

@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "node:path";
 import swaggerUi from "swagger-ui-express";
+import { doubleCsrf } from "csrf-csrf";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { notFoundHandler } from "./middlewares/not-found.js";
@@ -35,6 +36,26 @@ export function createApp() {
       },
     }),
   );
+
+  const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
+    getSecret: () => env.JWT_SECRET,
+    cookieName: "x-csrf-token",
+    cookieOptions: {
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+    },
+    size: 64,
+    ignoredMethods: ["GET", "HEAD", "OPTIONS"],
+    getSessionIdentifier: (req) => req.cookies?.["job-fair-token"] || "anonymous",
+  });
+
+  app.get("/api/v1/csrf-token", (req, res) => {
+    res.json({ csrfToken: generateCsrfToken(req, res) });
+  });
+
+  app.use(doubleCsrfProtection);
+
   app.use("/api/v1", apiRouter);
   app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.use(notFoundHandler);
