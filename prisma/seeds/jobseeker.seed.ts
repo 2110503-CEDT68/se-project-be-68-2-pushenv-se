@@ -3,7 +3,8 @@ import bcrypt from 'bcrypt';
 
 export async function seedJobSeekers(prisma: PrismaClient) {
   console.log('Seeding Job Seekers...');
-  const passwordHash = await bcrypt.hash('password123', 10);
+  const password = process.env.SEED_JOBSEEKER_PASSWORD || 'password123';
+  const passwordHash = await bcrypt.hash(password, 10);
   
   for (let i = 1; i <= 10; i++) {
     const random3 = Math.floor(100 + Math.random() * 900);

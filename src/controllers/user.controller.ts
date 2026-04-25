@@ -36,10 +36,15 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { name, phone }: { name?: string; phone?: string } = req.body;
 
-    if (name !== undefined && name.trim() === "")
-      return sendError(res, "Name cannot be empty", 400);
-    if (phone !== undefined && phone.trim() === "")
-      return sendError(res, "Phone cannot be empty", 400);
+    if (name !== undefined) {
+      if (typeof name !== "string") return sendError(res, "Invalid name format", 400);
+      if (name.trim() === "") return sendError(res, "Name cannot be empty", 400);
+    }
+
+    if (phone !== undefined) {
+      if (typeof phone !== "string") return sendError(res, "Invalid phone format", 400);
+      if (phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
+    }
 
     const data: { name?: string; phone?: string; avatar?: string } = {};
     if (name !== undefined) data.name = name;
