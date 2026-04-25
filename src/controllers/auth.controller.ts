@@ -110,10 +110,15 @@ export const updateAuthProfile = async (
   try {
     const { name, phone }: { name?: string; phone?: string } = req.body;
 
-    if (name !== undefined && name.trim() === "")
-      return sendError(res, "Name cannot be empty", 400);
-    if (phone !== undefined && phone.trim() === "")
-      return sendError(res, "Phone cannot be empty", 400);
+    if (name !== undefined) {
+      if (typeof name !== "string") return sendError(res, "Invalid name format", 400);
+      if (name.trim() === "") return sendError(res, "Name cannot be empty", 400);
+    }
+
+    if (phone !== undefined) {
+      if (typeof phone !== "string") return sendError(res, "Invalid phone format", 400);
+      if (phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
+    }
 
     const data: { name?: string; phone?: string; avatar?: string } = {};
     if (name !== undefined) data.name = name;
@@ -160,6 +165,8 @@ export const changePassword = async (
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword)
       return sendError(res, "Missing fields", 400);
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string")
+      return sendError(res, "Invalid password format", 400);
     if (newPassword.length < 6)
       return sendError(res, "New password must be at least 6 characters", 400);
 

@@ -37,7 +37,8 @@ export const getPublishedEvents = async (req: Request, res: Response) => {
       100,
       Math.max(1, parseInt(req.query["limit"] as string) || 20),
     );
-    const search = (req.query["search"] as string | undefined)?.slice(0, 100);
+    const searchRaw = req.query["search"];
+    const search = typeof searchRaw === "string" ? searchRaw.slice(0, 100) : undefined;
     const sort = req.query["sort"] as string | undefined;
     const skip = (page - 1) * limit;
 
