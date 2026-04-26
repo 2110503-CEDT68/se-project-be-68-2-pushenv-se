@@ -32,10 +32,10 @@ async function getPublishedEvent(eventId: string) {
 // GET /events
 export const getPublishedEvents = async (req: Request, res: Response) => {
   try {
-    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
+    const page = Math.max(1, Number.parseInt(req.query["page"] as string) || 1);
     const limit = Math.min(
       100,
-      Math.max(1, parseInt(req.query["limit"] as string) || 20),
+      Math.max(1, Number.parseInt(req.query["limit"] as string) || 20),
     );
     const searchRaw = req.query["search"];
     const search = typeof searchRaw === "string" ? searchRaw.slice(0, 100) : undefined;
