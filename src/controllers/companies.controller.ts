@@ -20,8 +20,8 @@ export const getCompanies = async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string | undefined;
     const sort = req.query.sort as string | undefined;
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
+    const page = Math.max(1, Number.parseInt(req.query.page as string) || 1);
+    const limit = Math.max(1, Number.parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
 
     const where: Prisma.CompanyProfileWhereInput = q

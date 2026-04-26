@@ -6,6 +6,10 @@ import { errorHandler } from "./error-handler.js";
 import { notFoundHandler } from "./not-found.js";
 import { upload } from "../utils/uploads.js";
 
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "uuid-123"),
+}));
+
 describe("errorHandler", () => {
   beforeEach(() => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
@@ -72,17 +76,6 @@ describe("notFoundHandler", () => {
 });
 
 describe("upload middleware", () => {
-  function makeUploadApp() {
-    const app = express();
-
-    app.post("/upload", upload.single("file"), (_req, res) => {
-      res.status(200).json({ ok: true });
-    });
-
-    app.use(errorHandler);
-
-    return app;
-  }
 
   it("accepts supported image types", async () => {
     const response = await request(makeUploadApp())
@@ -120,3 +113,16 @@ describe("upload middleware", () => {
     expect(response.body.message).toBe("File size must be 5 MB or smaller");
   });
 });
+
+function makeUploadApp() {
+  const app = express();
+  app.disable("x-powered-by");
+
+  app.post("/upload", upload.single("file"), (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
+  app.use(errorHandler);
+
+  return app;
+}

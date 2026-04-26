@@ -1,4 +1,3 @@
-import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("../../utils/prisma.js", () => ({
@@ -15,7 +14,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const { openJob } = require("../company.controller.js") as typeof import("../company.controller.js");
 
 describe("company.controller coverage supplement", () => {

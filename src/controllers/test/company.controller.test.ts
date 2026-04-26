@@ -1,6 +1,5 @@
 import { Response } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.js";
-import type prismaType from "../../utils/prisma.js";
 import type {
   getProfile as GetProfileType,
   updateProfile as UpdateProfileType,
@@ -30,7 +29,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const {
   getProfile,
   updateProfile,

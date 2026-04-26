@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";

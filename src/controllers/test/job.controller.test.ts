@@ -1,5 +1,4 @@
 import type { Request } from "express";
-import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 jest.mock("../../utils/prisma.js", () => ({
   __esModule: true,
@@ -17,7 +16,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const {
   getJob,
   adminGetCompanyJobs,

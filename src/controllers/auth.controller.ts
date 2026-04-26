@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
 import { env } from "../config/env.js";
+import { updateUserProfile } from "../utils/profile.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,16 @@ const selfSelect = {
   phone: true,
   avatar: true,
 } as const;
+
+/** Set JWT cookie on a response */
+function setAuthCookie(res: Response, token: string): void {
+  res.cookie("job-fair-token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -40,15 +50,8 @@ export const register = async (req: Request, res: Response) => {
       data: { name, email, passwordHash, role },
     });
 
-    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.cookie("job-fair-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
+    setAuthCookie(res, token);
     return sendSuccess(res, "Registered successfully", { user: { id: user.id, role: user.role } }, 201);
   } catch {
     return sendError(res, "Server error", 500);
@@ -70,15 +73,8 @@ export const login = async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return sendError(res, "Invalid credentials", 401);
 
-    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.cookie("job-fair-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
+    setAuthCookie(res, token);
     return sendSuccess(res, "Login successful", { user: { id: user.id, role: user.role } });
   } catch {
     return sendError(res, "Server error", 500);
@@ -102,50 +98,21 @@ export const getAuthProfile = async (
   }
 };
 
-// PUT /auth/me  — name, phone, avatar (multipart/form-data)
 export const updateAuthProfile = async (
   req: AuthenticatedRequest,
   res: Response,
 ) => {
   try {
-    const { name, phone }: { name?: string; phone?: string } = req.body;
-
-    if (name !== undefined && name.trim() === "")
-      return sendError(res, "Name cannot be empty", 400);
-    if (phone !== undefined && phone.trim() === "")
-      return sendError(res, "Phone cannot be empty", 400);
-
-    const data: { name?: string; phone?: string; avatar?: string } = {};
-    if (name !== undefined) data.name = name;
-    if (phone !== undefined) data.phone = phone;
-
-    if (req.file) {
-      const existing = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { avatar: true },
-      });
-
-      if (existing?.avatar) {
-        try {
-          await deleteStoredUpload(existing.avatar);
-        } catch (error) {
-          // Keep profile updates working even if an old file is already missing.
-          const fileError = error as NodeJS.ErrnoException;
-          if (fileError.code !== "ENOENT") {
-            console.error("Failed to delete old avatar:", error);
-          }
-        }
-      }
-
-      data.avatar = await saveAvatarFile(req.file);
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: req.user!.id },
-      data,
-      select: selfSelect,
+    const { name, phone } = req.body as { name?: string; phone?: string };
+    const result = await updateUserProfile({
+      userId: req.user!.id,
+      name,
+      phone,
+      file: req.file,
+      selectFields: selfSelect,
     });
-    return sendSuccess(res, "Profile updated", updated);
+    if ("error" in result) return sendError(res, result.error, 400);
+    return sendSuccess(res, "Profile updated", result.data);
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -160,6 +127,8 @@ export const changePassword = async (
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword)
       return sendError(res, "Missing fields", 400);
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string")
+      return sendError(res, "Invalid password format", 400);
     if (newPassword.length < 6)
       return sendError(res, "New password must be at least 6 characters", 400);
 

@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("node:fs/promises", () => ({
@@ -34,7 +33,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const mockUuid = require("uuid").v4 as jest.Mock;
 const {
   register,
@@ -204,7 +203,6 @@ describe("auth.controller", () => {
 
   describe("changePassword", () => {
     it("covers validation, lookup, invalid password, success, and catch", async () => {
-      const req = makeAuthReq({ user: { id: "user-1", role: "jobSeeker" } });
       const res = makeRes();
 
       await changePassword(makeAuthReq({ body: {} }), res);
@@ -278,11 +276,11 @@ describe("auth.controller", () => {
       const res = makeRes();
 
       await logout(makeAuthReq(), res);
-      expect(res.cookie).toHaveBeenCalled();
+      expect(res.clearCookie).toHaveBeenCalled();
       expect(res.status).toHaveBeenLastCalledWith(200);
 
       const throwingRes = makeRes();
-      (throwingRes.cookie as jest.Mock).mockImplementationOnce(() => {
+      (throwingRes.clearCookie as jest.Mock).mockImplementationOnce(() => {
         throw new Error("boom");
       });
       await logout(makeAuthReq(), throwingRes);

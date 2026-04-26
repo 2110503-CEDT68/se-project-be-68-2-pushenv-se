@@ -2,7 +2,7 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
+import { updateUserProfile } from "../utils/profile.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -34,43 +34,16 @@ export const getMe = async (req: AuthenticatedRequest, res: Response) => {
 // PUT /users/me
 export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, phone }: { name?: string; phone?: string } = req.body;
-
-    if (name !== undefined && name.trim() === "")
-      return sendError(res, "Name cannot be empty", 400);
-    if (phone !== undefined && phone.trim() === "")
-      return sendError(res, "Phone cannot be empty", 400);
-
-    const data: { name?: string; phone?: string; avatar?: string } = {};
-    if (name !== undefined) data.name = name;
-    if (phone !== undefined) data.phone = phone;
-
-    if (req.file) {
-      const existing = await prisma.user.findUnique({ 
-        where: { id: req.user!.id }, 
-        select: { avatar: true } 
-      });
-
-      if (existing?.avatar) {
-        try {
-          await deleteStoredUpload(existing.avatar);
-        } catch (error) {
-          const fileError = error as NodeJS.ErrnoException;
-          if (fileError.code !== "ENOENT") {
-            console.error("Failed to delete old avatar:", error);
-          }
-        }
-      }
-
-      data.avatar = await saveAvatarFile(req.file);
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: req.user!.id },
-      data,
-      select: userProfileSelect,
+    const { name, phone } = req.body as { name?: string; phone?: string };
+    const result = await updateUserProfile({
+      userId: req.user!.id,
+      name,
+      phone,
+      file: req.file,
+      selectFields: userProfileSelect,
     });
-    return sendSuccess(res, "User updated", updated);
+    if ("error" in result) return sendError(res, result.error, 400);
+    return sendSuccess(res, "User updated", result.data);
   } catch {
     return sendError(res, "Server error", 500);
   }
@@ -98,10 +71,10 @@ export const getRegistrations = async (
   res: Response,
 ) => {
   try {
-    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
+    const page = Math.max(1, Number.parseInt(req.query["page"] as string) || 1);
     const limit = Math.min(
       100,
-      Math.max(1, parseInt(req.query["limit"] as string) || 10),
+      Math.max(1, Number.parseInt(req.query["limit"] as string) || 10),
     );
     const skip = (page - 1) * limit;
 
