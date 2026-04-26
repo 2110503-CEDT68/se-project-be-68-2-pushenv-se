@@ -1,4 +1,7 @@
 import jwt from "jsonwebtoken";
+jest.mock("uuid", () => ({
+  v4: jest.fn(() => "uuid-123"),
+}));
 import fs from "node:fs/promises";
 import path from "node:path";
 import request from "supertest";
@@ -58,7 +61,7 @@ describe("createApp", () => {
   it("enforces role-based access", async () => {
     const response = await request(app)
       .get("/api/v1/admin/accounts")
-      .set("Authorization", `Bearer ${makeToken("jobSeeker")}`);
+      .set("Cookie", [`job-fair-token=${makeToken("jobSeeker")}`]);
 
     expect(response.status).toBe(403);
     expect(response.body.message).toBe("Forbidden");
