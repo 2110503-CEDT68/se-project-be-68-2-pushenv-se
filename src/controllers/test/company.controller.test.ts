@@ -1,6 +1,5 @@
 import { Response } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.js";
-import type prismaType from "../../utils/prisma.js";
 import type {
   getProfile as GetProfileType,
   updateProfile as UpdateProfileType,
