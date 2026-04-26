@@ -5,7 +5,7 @@ import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
 import { env } from "../config/env.js";
-import { validateName, validatePhone, replaceAvatar } from "../utils/profile.js";
+import { updateUserProfile } from "../utils/profile.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -103,29 +103,16 @@ export const updateAuthProfile = async (
   res: Response,
 ) => {
   try {
-    const { name, phone }: { name?: string; phone?: string } = req.body;
-
-    if (name !== undefined) {
-      const nameError = validateName(name);
-      if (nameError) return sendError(res, nameError, 400);
-    }
-
-    if (phone !== undefined) {
-      const phoneError = validatePhone(phone);
-      if (phoneError) return sendError(res, phoneError, 400);
-    }
-
-    const data: { name?: string; phone?: string; avatar?: string } = {};
-    if (name !== undefined) data.name = name;
-    if (phone !== undefined) data.phone = phone;
-    if (req.file) data.avatar = await replaceAvatar(req.user!.id, req.file);
-
-    const updated = await prisma.user.update({
-      where: { id: req.user!.id },
-      data,
-      select: selfSelect,
+    const { name, phone } = req.body as { name?: string; phone?: string };
+    const result = await updateUserProfile({
+      userId: req.user!.id,
+      name,
+      phone,
+      file: req.file,
+      selectFields: selfSelect,
     });
-    return sendSuccess(res, "Profile updated", updated);
+    if ("error" in result) return sendError(res, result.error, 400);
+    return sendSuccess(res, "Profile updated", result.data);
   } catch {
     return sendError(res, "Server error", 500);
   }

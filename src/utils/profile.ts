@@ -36,3 +36,39 @@ export async function replaceAvatar(
   }
   return saveAvatarFile(file);
 }
+
+/** Shared profile-update logic: validate, handle avatar, then save */
+export async function updateUserProfile<T>({
+  userId,
+  name,
+  phone,
+  file,
+  selectFields,
+}: {
+  userId: string;
+  name?: string;
+  phone?: string;
+  file?: Express.Multer.File;
+  selectFields: T;
+}): Promise<{ error: string } | { data: unknown }> {
+  if (name !== undefined) {
+    const err = validateName(name);
+    if (err) return { error: err };
+  }
+  if (phone !== undefined) {
+    const err = validatePhone(phone);
+    if (err) return { error: err };
+  }
+
+  const data: { name?: string; phone?: string; avatar?: string } = {};
+  if (name !== undefined) data.name = name;
+  if (phone !== undefined) data.phone = phone;
+  if (file) data.avatar = await replaceAvatar(userId, file);
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: selectFields as Record<string, boolean>,
+  });
+  return { data: updated };
+}
