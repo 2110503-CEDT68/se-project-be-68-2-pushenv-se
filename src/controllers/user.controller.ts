@@ -2,7 +2,7 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
+import { validateName, validatePhone, replaceAvatar } from "../utils/profile.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -14,44 +14,6 @@ const userProfileSelect = {
   phone: true,
   avatar: true,
 } as const;
-
-// ── Helper functions ──────────────────────────────────────────────────────────
-
-/** Validate name field — returns error message or null */
-function validateName(name: string): string | null {
-  if (typeof name !== "string") return "Invalid name format";
-  if (name.trim() === "") return "Name cannot be empty";
-  return null;
-}
-
-/** Validate phone field — returns error message or null */
-function validatePhone(phone: string): string | null {
-  if (typeof phone !== "string") return "Invalid phone format";
-  if (phone.trim() === "") return "Phone cannot be empty";
-  return null;
-}
-
-/** Delete old avatar file and save new one, returns new avatar path */
-async function replaceUserAvatar(
-  userId: string,
-  file: Express.Multer.File,
-): Promise<string> {
-  const existing = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { avatar: true },
-  });
-  if (existing?.avatar) {
-    try {
-      await deleteStoredUpload(existing.avatar);
-    } catch (error) {
-      const fileError = error as NodeJS.ErrnoException;
-      if (fileError.code !== "ENOENT") {
-        console.error("Failed to delete old avatar:", error);
-      }
-    }
-  }
-  return saveAvatarFile(file);
-}
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +49,7 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
     const data: { name?: string; phone?: string; avatar?: string } = {};
     if (name !== undefined) data.name = name;
     if (phone !== undefined) data.phone = phone;
-    if (req.file) data.avatar = await replaceUserAvatar(req.user!.id, req.file);
+    if (req.file) data.avatar = await replaceAvatar(req.user!.id, req.file);
 
     const updated = await prisma.user.update({
       where: { id: req.user!.id },

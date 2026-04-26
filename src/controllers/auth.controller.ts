@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 import type { AuthenticatedRequest } from "../middlewares/auth.js";
 import prisma from "../utils/prisma.js";
 import { sendSuccess, sendError } from "../utils/http.js";
-import { deleteStoredUpload, saveAvatarFile } from "../utils/uploads.js";
 import { env } from "../config/env.js";
+import { validateName, validatePhone, replaceAvatar } from "../utils/profile.js";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -17,44 +17,6 @@ const selfSelect = {
   phone: true,
   avatar: true,
 } as const;
-
-// ── Helper functions ──────────────────────────────────────────────────────────
-
-/** Validate name field — returns error message or null */
-function validateName(name: string): string | null {
-  if (typeof name !== "string") return "Invalid name format";
-  if (name.trim() === "") return "Name cannot be empty";
-  return null;
-}
-
-/** Validate phone field — returns error message or null */
-function validatePhone(phone: string): string | null {
-  if (typeof phone !== "string") return "Invalid phone format";
-  if (phone.trim() === "") return "Phone cannot be empty";
-  return null;
-}
-
-/** Delete old avatar file and save new one, returns new avatar path */
-async function replaceAvatar(
-  userId: string,
-  file: Express.Multer.File,
-): Promise<string> {
-  const existing = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { avatar: true },
-  });
-  if (existing?.avatar) {
-    try {
-      await deleteStoredUpload(existing.avatar);
-    } catch (error) {
-      const fileError = error as NodeJS.ErrnoException;
-      if (fileError.code !== "ENOENT") {
-        console.error("Failed to delete old avatar:", error);
-      }
-    }
-  }
-  return saveAvatarFile(file);
-}
 
 /** Set JWT cookie on a response */
 function setAuthCookie(res: Response, token: string): void {
