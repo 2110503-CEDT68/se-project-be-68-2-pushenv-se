@@ -1,5 +1,6 @@
 import { PrismaClient, Role, JobType } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { randomInt } from 'node:crypto';
 
 export async function seedCompanies(prisma: PrismaClient) {
   console.log('Seeding Companies & Jobs...');
@@ -8,7 +9,7 @@ export async function seedCompanies(prisma: PrismaClient) {
   const createdUsers = [];
   
   for (let i = 1; i <= 5; i++) {
-    const random3 = Math.floor(100 + Math.random() * 900);
+    const random3 = randomInt(100, 1000);
     const companyName = `Company ${random3}`;
     const email = `company${random3}@example.com`;
 
