@@ -18,6 +18,54 @@ const selfSelect = {
   avatar: true,
 } as const;
 
+// ── Helper functions ──────────────────────────────────────────────────────────
+
+/** Validate name field — returns error message or null */
+function validateName(name: string): string | null {
+  if (typeof name !== "string") return "Invalid name format";
+  if (name.trim() === "") return "Name cannot be empty";
+  return null;
+}
+
+/** Validate phone field — returns error message or null */
+function validatePhone(phone: string): string | null {
+  if (typeof phone !== "string") return "Invalid phone format";
+  if (phone.trim() === "") return "Phone cannot be empty";
+  return null;
+}
+
+/** Delete old avatar file and save new one, returns new avatar path */
+async function replaceAvatar(
+  userId: string,
+  file: Express.Multer.File,
+): Promise<string> {
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { avatar: true },
+  });
+  if (existing?.avatar) {
+    try {
+      await deleteStoredUpload(existing.avatar);
+    } catch (error) {
+      const fileError = error as NodeJS.ErrnoException;
+      if (fileError.code !== "ENOENT") {
+        console.error("Failed to delete old avatar:", error);
+      }
+    }
+  }
+  return saveAvatarFile(file);
+}
+
+/** Set JWT cookie on a response */
+function setAuthCookie(res: Response, token: string): void {
+  res.cookie("job-fair-token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 // POST /auth/register
@@ -40,15 +88,8 @@ export const register = async (req: Request, res: Response) => {
       data: { name, email, passwordHash, role },
     });
 
-    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.cookie("job-fair-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
+    setAuthCookie(res, token);
     return sendSuccess(res, "Registered successfully", { user: { id: user.id, role: user.role } }, 201);
   } catch {
     return sendError(res, "Server error", 500);
@@ -70,15 +111,8 @@ export const login = async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return sendError(res, "Invalid credentials", 401);
 
-    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.cookie("job-fair-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    const token = jwt.sign({ id: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
+    setAuthCookie(res, token);
     return sendSuccess(res, "Login successful", { user: { id: user.id, role: user.role } });
   } catch {
     return sendError(res, "Server error", 500);
@@ -102,7 +136,6 @@ export const getAuthProfile = async (
   }
 };
 
-// PUT /auth/me  — name, phone, avatar (multipart/form-data)
 export const updateAuthProfile = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -111,39 +144,19 @@ export const updateAuthProfile = async (
     const { name, phone }: { name?: string; phone?: string } = req.body;
 
     if (name !== undefined) {
-      if (typeof name !== "string") return sendError(res, "Invalid name format", 400);
-      if (name.trim() === "") return sendError(res, "Name cannot be empty", 400);
+      const nameError = validateName(name);
+      if (nameError) return sendError(res, nameError, 400);
     }
 
     if (phone !== undefined) {
-      if (typeof phone !== "string") return sendError(res, "Invalid phone format", 400);
-      if (phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
+      const phoneError = validatePhone(phone);
+      if (phoneError) return sendError(res, phoneError, 400);
     }
 
     const data: { name?: string; phone?: string; avatar?: string } = {};
     if (name !== undefined) data.name = name;
     if (phone !== undefined) data.phone = phone;
-
-    if (req.file) {
-      const existing = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { avatar: true },
-      });
-
-      if (existing?.avatar) {
-        try {
-          await deleteStoredUpload(existing.avatar);
-        } catch (error) {
-          // Keep profile updates working even if an old file is already missing.
-          const fileError = error as NodeJS.ErrnoException;
-          if (fileError.code !== "ENOENT") {
-            console.error("Failed to delete old avatar:", error);
-          }
-        }
-      }
-
-      data.avatar = await saveAvatarFile(req.file);
-    }
+    if (req.file) data.avatar = await replaceAvatar(req.user!.id, req.file);
 
     const updated = await prisma.user.update({
       where: { id: req.user!.id },

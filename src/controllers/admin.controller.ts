@@ -25,8 +25,8 @@ export const getAccounts = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const name = req.query["name"] as string | undefined;
     const role = req.query["role"] as string | undefined;
-    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const page = Math.max(1, Number.parseInt(req.query["page"] as string) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query["limit"] as string) || 10));
     const skip = (page - 1) * limit;
 
     const where = {
@@ -195,8 +195,8 @@ export const deleteAccount = async (req: AuthenticatedRequest, res: Response) =>
 export const getCompanies = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const name = req.query["name"] as string | undefined;
-    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const page = Math.max(1, Number.parseInt(req.query["page"] as string) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query["limit"] as string) || 10));
     const skip = (page - 1) * limit;
 
     const where = name
@@ -300,8 +300,8 @@ export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const name = req.query["name"] as string | undefined;
     const date = req.query["date"] as string | undefined;
-    const page = Math.max(1, parseInt(req.query["page"] as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query["limit"] as string) || 10));
+    const page = Math.max(1, Number.parseInt(req.query["page"] as string) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query["limit"] as string) || 10));
     const skip = (page - 1) * limit;
 
     const where = {

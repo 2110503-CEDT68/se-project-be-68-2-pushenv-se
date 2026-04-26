@@ -34,7 +34,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const mockUuid = require("uuid").v4 as jest.Mock;
 const {
   register,

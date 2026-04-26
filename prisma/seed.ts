@@ -37,9 +37,8 @@ async function main() {
     admin = await prisma.user.findFirst({ where: { role: 'systemAdmin' } });
   }
 
-  let companies: any[] = [];
   if (!isTargeted || args.includes('--company')) {
-    companies = await seedCompanies(prisma);
+    await seedCompanies(prisma);
   }
 
   if (!isTargeted || args.includes('--jobseeker')) {
@@ -52,27 +51,29 @@ async function main() {
       console.error('Cannot seed events: No admin user found.');
       return;
     }
-    
-    const activeCompanies = await prisma.user.findMany({ 
-      where: { role: 'companyUser' }, 
-      include: { companyProfile: true } 
+
+    const activeCompanies = await prisma.user.findMany({
+      where: { role: 'companyUser' },
+      include: { companyProfile: true }
     });
-    
+
     const companyProfileIds = activeCompanies
       .map(c => c.companyProfile?.id)
       .filter((id): id is string => !!id);
-      
+
     await seedEvents(prisma, admin.id, companyProfileIds);
   }
 
   console.log('Full seeding finished successfully!');
 }
 
-main()
-  .catch((e) => {
-    console.error('Seeding failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Fix: use top-level await instead of promise chain
+// Fix: avoid async in .finally() which could go unhandled
+try {
+  await main();
+} catch (e) {
+  console.error('Seeding failed:', e);
+  process.exit(1);
+} finally {
+  await prisma.$disconnect();
+}
