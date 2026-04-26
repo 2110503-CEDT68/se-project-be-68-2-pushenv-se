@@ -37,10 +37,8 @@ async function main() {
     admin = await prisma.user.findFirst({ where: { role: 'systemAdmin' } });
   }
 
-  // Fix: remove useless initial assignment — no need for `= []`
-  let companies: any[] | undefined;
   if (!isTargeted || args.includes('--company')) {
-    companies = await seedCompanies(prisma);
+    await seedCompanies(prisma);
   }
 
   if (!isTargeted || args.includes('--jobseeker')) {

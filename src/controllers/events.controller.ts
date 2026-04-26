@@ -21,7 +21,7 @@ const companySelect = {
 // Helper: load a published event by id, or send the appropriate error.
 async function getPublishedEvent(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event || !event.isPublished) {
+  if (!event?.isPublished) {
     return null;
   }
   return event;
@@ -82,7 +82,7 @@ export const getEventById = async (req: Request, res: Response) => {
       include: { _count: { select: { registrations: true, companies: true } } },
     });
 
-    if (!event || !event.isPublished)
+    if (!event?.isPublished)
       return sendError(res, "Event not found", 404);
     return sendSuccess(res, "Event details", event);
   } catch {
@@ -100,7 +100,7 @@ export const getEventCompanies = async (req: Request, res: Response) => {
       include: { companies: { select: companySelect } },
     });
 
-    if (!event || !event.isPublished) return sendError(res, "Event not found", 404);
+    if (!event?.isPublished) return sendError(res, "Event not found", 404);
     
     return sendSuccess(res, "Event companies", event.companies);
   } catch (err) {

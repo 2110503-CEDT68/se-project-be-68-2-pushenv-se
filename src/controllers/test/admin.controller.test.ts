@@ -43,7 +43,7 @@ jest.mock("../../utils/prisma.js", () => ({
   },
 }));
 
-const prisma = require("../../utils/prisma.js").default as typeof prismaType;
+const prisma = require("../../utils/prisma.js").default;
 const controllers = require("../admin.controller.js") as typeof import("../admin.controller.js");
 
 const mockHash = bcrypt.hash as jest.Mock;
