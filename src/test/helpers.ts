@@ -8,7 +8,7 @@ export function makeReq<T extends Request = Request>(overrides: Partial<T> = {})
     query: {},
     header: jest.fn(),
     ...overrides,
-  } as T;
+  } as unknown as T;
 }
 
 export function makeAuthReq(overrides: Partial<AuthenticatedRequest> = {}) {
@@ -23,6 +23,7 @@ export function makeRes() {
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
     cookie: jest.fn().mockReturnThis(),
+    clearCookie: jest.fn().mockReturnThis(),
   } as unknown as Response;
 }
 
