@@ -22,4 +22,22 @@ export async function seedJobSeekers(prisma: PrismaClient) {
       },
     });
   }
+
+  // Fixed users for E2E tests
+  const testUsers = [
+    { name: 'Test User', email: 'test@jobseeker.com', phone: '081-000-0001' },
+    { name: 'Delete Me', email: 'delete-me@jobseeker.com', phone: '081-000-0002' },
+  ];
+
+  for (const tu of testUsers) {
+    await prisma.user.upsert({
+      where: { email: tu.email },
+      update: {},
+      create: {
+        ...tu,
+        passwordHash,
+        role: Role.jobSeeker,
+      },
+    });
+  }
 }
