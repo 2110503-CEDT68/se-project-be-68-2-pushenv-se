@@ -4,7 +4,7 @@ import { randomInt } from 'node:crypto';
 
 export async function seedCompanies(prisma: PrismaClient) {
   console.log('Seeding Companies & Jobs...');
-  const password = process.env.SEED_COMPANY_PASSWORD || ("default" + "Company" + "123");
+  const password = process.env.SEED_COMPANY_PASSWORD || 'password123';
   const passwordHash = await bcrypt.hash(password, 10);
   const createdUsers = [];
   
