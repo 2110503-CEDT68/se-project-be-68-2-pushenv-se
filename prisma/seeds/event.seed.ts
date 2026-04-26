@@ -22,7 +22,7 @@ export async function seedEvents(prisma: PrismaClient, adminId: string, companyP
     createdEvents.push(event);
 
     // Link random companies
-    const randomCompanies = companyProfileIds.sort(() => 0.5 - Math.random()).slice(0, 3);
+    const randomCompanies = companyProfileIds.toSorted(() => 0.5 - Math.random()).slice(0, 3);
     for (const cid of randomCompanies) {
       await prisma.eventCompany.create({
         data: { eventId: event.id, companyId: cid }
@@ -34,7 +34,7 @@ export async function seedEvents(prisma: PrismaClient, adminId: string, companyP
   const seekers = await prisma.user.findMany({ where: { role: 'jobSeeker' } });
   for (const event of createdEvents) {
     if (!event.isPublished) continue;
-    const randomSeekers = seekers.sort(() => 0.5 - Math.random()).slice(0, 5);
+    const randomSeekers = seekers.toSorted(() => 0.5 - Math.random()).slice(0, 5);
     for (const seeker of randomSeekers) {
       await prisma.eventRegistration.upsert({
         where: {
