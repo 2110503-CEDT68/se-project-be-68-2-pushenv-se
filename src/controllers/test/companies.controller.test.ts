@@ -1,5 +1,4 @@
 import type { Request } from "express";
-import type prismaType from "../../utils/prisma.js";
 import { makeReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("../../utils/prisma.js", () => ({

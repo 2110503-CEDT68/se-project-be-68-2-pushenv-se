@@ -1,4 +1,3 @@
-import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("../../utils/prisma.js", () => ({

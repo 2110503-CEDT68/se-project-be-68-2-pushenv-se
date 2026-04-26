@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import type prismaType from "../../utils/prisma.js";
 import { makeAuthReq, makeReq, makeRes } from "../../test/helpers.js";
 
 jest.mock("node:fs/promises", () => ({
