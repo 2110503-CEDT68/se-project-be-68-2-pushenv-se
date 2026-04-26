@@ -282,7 +282,7 @@ describe("events.controller", () => {
       const req = makeAuthReq({
         user: { id: "user-1", role: "jobSeeker" },
         params: { id: "event-1" },
-      }) as AuthenticatedRequest;
+      });
 
       mockEventFindUnique.mockResolvedValueOnce(null);
       const notFoundRes = makeRes();
