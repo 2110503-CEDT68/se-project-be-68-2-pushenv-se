@@ -15,6 +15,44 @@ const userProfileSelect = {
   avatar: true,
 } as const;
 
+// ── Helper functions ──────────────────────────────────────────────────────────
+
+/** Validate name field — returns error message or null */
+function validateName(name: string): string | null {
+  if (typeof name !== "string") return "Invalid name format";
+  if (name.trim() === "") return "Name cannot be empty";
+  return null;
+}
+
+/** Validate phone field — returns error message or null */
+function validatePhone(phone: string): string | null {
+  if (typeof phone !== "string") return "Invalid phone format";
+  if (phone.trim() === "") return "Phone cannot be empty";
+  return null;
+}
+
+/** Delete old avatar file and save new one, returns new avatar path */
+async function replaceUserAvatar(
+  userId: string,
+  file: Express.Multer.File,
+): Promise<string> {
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { avatar: true },
+  });
+  if (existing?.avatar) {
+    try {
+      await deleteStoredUpload(existing.avatar);
+    } catch (error) {
+      const fileError = error as NodeJS.ErrnoException;
+      if (fileError.code !== "ENOENT") {
+        console.error("Failed to delete old avatar:", error);
+      }
+    }
+  }
+  return saveAvatarFile(file);
+}
+
 // ── Profile ───────────────────────────────────────────────────────────────────
 
 // GET /users/me
@@ -37,38 +75,19 @@ export const updateMe = async (req: AuthenticatedRequest, res: Response) => {
     const { name, phone }: { name?: string; phone?: string } = req.body;
 
     if (name !== undefined) {
-      if (typeof name !== "string") return sendError(res, "Invalid name format", 400);
-      if (name.trim() === "") return sendError(res, "Name cannot be empty", 400);
+      const nameError = validateName(name);
+      if (nameError) return sendError(res, nameError, 400);
     }
 
     if (phone !== undefined) {
-      if (typeof phone !== "string") return sendError(res, "Invalid phone format", 400);
-      if (phone.trim() === "") return sendError(res, "Phone cannot be empty", 400);
+      const phoneError = validatePhone(phone);
+      if (phoneError) return sendError(res, phoneError, 400);
     }
 
     const data: { name?: string; phone?: string; avatar?: string } = {};
     if (name !== undefined) data.name = name;
     if (phone !== undefined) data.phone = phone;
-
-    if (req.file) {
-      const existing = await prisma.user.findUnique({ 
-        where: { id: req.user!.id }, 
-        select: { avatar: true } 
-      });
-
-      if (existing?.avatar) {
-        try {
-          await deleteStoredUpload(existing.avatar);
-        } catch (error) {
-          const fileError = error as NodeJS.ErrnoException;
-          if (fileError.code !== "ENOENT") {
-            console.error("Failed to delete old avatar:", error);
-          }
-        }
-      }
-
-      data.avatar = await saveAvatarFile(req.file);
-    }
+    if (req.file) data.avatar = await replaceUserAvatar(req.user!.id, req.file);
 
     const updated = await prisma.user.update({
       where: { id: req.user!.id },
