@@ -18,7 +18,11 @@
     "compose:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
     "compose:nuke": "docker compose --env-file .env -f infra/docker-compose.yml down -v",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "docs:lint": "redocly lint ./openapi.yaml",
+    "docs:bundle": "redocly bundle openapi.yaml -o dist/openapi-bundled.yaml",
+    "docs:build": "redocly build-docs openapi.yaml -o docs/api.html",
+    "docs:serve": "redocly preview-docs openapi.yaml"
   },
   "keywords": [],
   "author": "",
@@ -44,6 +48,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.30.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -59,7 +64,6 @@
     "@types/swagger-ui-express": "^4.1.8",
     "jest": "^30.3.0",
     "prisma": "^7.8.0",
-    "redoc-cli": "^0.13.21",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "tsx": "^4.21.0",
