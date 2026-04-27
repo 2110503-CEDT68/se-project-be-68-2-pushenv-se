@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { randomInt } from 'node:crypto';
 
 export async function seedJobSeekers(prisma: PrismaClient) {
   console.log('Seeding Job Seekers...');
@@ -7,7 +8,7 @@ export async function seedJobSeekers(prisma: PrismaClient) {
   const passwordHash = await bcrypt.hash(password, 10);
   
   for (let i = 1; i <= 10; i++) {
-    const random3 = Math.floor(100 + Math.random() * 900);
+    const random3 = randomInt(100, 1000);
     const email = `student${random3}@example.com`;
 
     await prisma.user.upsert({

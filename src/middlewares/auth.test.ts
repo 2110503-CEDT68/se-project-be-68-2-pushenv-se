@@ -34,8 +34,7 @@ describe("requireAuth", () => {
     const payload = { id: "user-1", role: "jobSeeker" };
     (jwt.verify as jest.Mock).mockReturnValueOnce(payload);
 
-    const req = makeReq();
-    (req.header as jest.Mock).mockReturnValue("Bearer valid.token.here");
+    const req = makeReq({ cookies: { "job-fair-token": "valid.token.here" } });
     const res = makeRes();
     const next = makeNext();
 
@@ -47,9 +46,8 @@ describe("requireAuth", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when Authorization header is missing", () => {
-    const req = makeReq();
-    (req.header as jest.Mock).mockReturnValue(undefined);
+  it("returns 401 when job-fair-token cookie is missing", () => {
+    const req = makeReq({ cookies: {} });
     const res = makeRes();
     const next = makeNext();
 
@@ -62,25 +60,12 @@ describe("requireAuth", () => {
     );
   });
 
-  it("returns 401 when header does not start with Bearer", () => {
-    const req = makeReq();
-    (req.header as jest.Mock).mockReturnValue("Basic sometoken");
-    const res = makeRes();
-    const next = makeNext();
-
-    requireAuth(req, res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
-
   it("returns 401 when jwt.verify throws (expired or tampered token)", () => {
     (jwt.verify as jest.Mock).mockImplementationOnce(() => {
       throw new Error("jwt expired");
     });
 
-    const req = makeReq();
-    (req.header as jest.Mock).mockReturnValue("Bearer bad.token");
+    const req = makeReq({ cookies: { "job-fair-token": "bad.token" } });
     const res = makeRes();
     const next = makeNext();
 
@@ -89,6 +74,7 @@ describe("requireAuth", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
   });
+
 });
 
 // ── requireRole ───────────────────────────────────────────────────────────────

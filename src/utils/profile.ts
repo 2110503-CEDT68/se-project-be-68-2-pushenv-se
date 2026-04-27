@@ -46,9 +46,9 @@ export async function updateUserProfile<T>({
   selectFields,
 }: {
   userId: string;
-  name?: string;
-  phone?: string;
-  file?: Express.Multer.File;
+  name?: string | undefined;
+  phone?: string | undefined;
+  file?: Express.Multer.File | undefined;
   selectFields: T;
 }): Promise<{ error: string } | { data: unknown }> {
   if (name !== undefined) {
