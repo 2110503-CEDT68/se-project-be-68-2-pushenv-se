@@ -4,10 +4,16 @@ import swaggerJsdoc from "swagger-jsdoc";
  * @openapi
  * components:
  *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
+ *     cookieAuth:
+ *       type: apiKey
+ *       in: cookie
+ *       name: job-fair-token
+ *       description: Session JWT stored in the `job-fair-token` cookie.
+ *     csrfToken:
+ *       type: apiKey
+ *       in: header
+ *       name: x-csrf-token
+ *       description: Required for non-GET/HEAD/OPTIONS requests after calling `/api/v1/csrf-token`.
  *
  *   parameters:
  *     JobId:
@@ -50,7 +56,7 @@ import swaggerJsdoc from "swagger-jsdoc";
  *           type: string
  *           example: Error description
  *
- *     TokenResponse:
+ *     AuthSessionResponse:
  *       type: object
  *       properties:
  *         success:
@@ -62,9 +68,15 @@ import swaggerJsdoc from "swagger-jsdoc";
  *         data:
  *           type: object
  *           properties:
- *             token:
- *               type: string
- *               example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *             user:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 role:
+ *                   type: string
+ *                   enum: [jobSeeker, companyUser, systemAdmin]
  *
  *     JobInput:
  *       type: object
@@ -98,7 +110,7 @@ import swaggerJsdoc from "swagger-jsdoc";
  *
  *   responses:
  *     Unauthorized:
- *       description: Missing or invalid Bearer token
+ *       description: Missing or invalid session cookie
  *       content:
  *         application/json:
  *           schema:
@@ -139,6 +151,7 @@ export const swaggerSpec = swaggerJsdoc({
     ],
     tags: [
       { name: "Auth",               description: "Authentication — all roles" },
+      { name: "System",             description: "Operational and documentation endpoints" },
       { name: "Users",              description: "Job seeker profile and registrations" },
       { name: "Events",             description: "Public event discovery and registration" },
       { name: "Companies",          description: "Public company directory" },
@@ -150,5 +163,10 @@ export const swaggerSpec = swaggerJsdoc({
       { name: "Admin - Jobs",       description: "System admin — job listing management" },
     ],
   },
-  apis: ["./src/utils/swagger.ts", "./src/modules/**/*.ts"],
+  apis: [
+    "./src/app.ts",
+    "./src/routes/index.ts",
+    "./src/utils/swagger.ts",
+    "./src/modules/**/*.ts",
+  ],
 });

@@ -11,6 +11,8 @@ export const authRouter = Router();
  *   post:
  *     summary: Register a new job seeker account
  *     tags: [Auth]
+ *     security:
+ *       - csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -36,11 +38,11 @@ export const authRouter = Router();
  *                 example: jobSeeker
  *     responses:
  *       201:
- *         description: Registered successfully — returns JWT token
+ *         description: Registered successfully — sets auth cookie and returns session user
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/TokenResponse'
+ *               $ref: '#/components/schemas/AuthSessionResponse'
  *       400:
  *         description: Missing required fields or invalid role
  *         content:
@@ -62,6 +64,8 @@ authRouter.post("/register", register);
  *   post:
  *     summary: Login with email and password (all roles)
  *     tags: [Auth]
+ *     security:
+ *       - csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -79,11 +83,11 @@ authRouter.post("/register", register);
  *                 example: pass1234
  *     responses:
  *       200:
- *         description: Login successful — returns JWT token
+ *         description: Login successful — sets auth cookie and returns session user
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/TokenResponse'
+ *               $ref: '#/components/schemas/AuthSessionResponse'
  *       400:
  *         description: Missing required fields
  *         content:
@@ -106,7 +110,7 @@ authRouter.post("/login", login);
  *     summary: Get my profile (all roles)
  *     tags: [Auth]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Current user profile
@@ -128,7 +132,8 @@ authRouter.get("/me", requireAuth, getAuthProfile);
  *     summary: Update my profile — name, phone, avatar (all roles)
  *     tags: [Auth]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       content:
  *         multipart/form-data:
@@ -170,7 +175,8 @@ authRouter.put("/me", requireAuth, upload.single("avatar"), updateAuthProfile);
  *     summary: Change my password (all roles)
  *     tags: [Auth]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -218,7 +224,8 @@ authRouter.post("/change-password", requireAuth, changePassword);
  *       JWT token from localStorage or memory to fully log out.
  *     tags: [Auth]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     responses:
  *       200:
  *         description: Logout successful

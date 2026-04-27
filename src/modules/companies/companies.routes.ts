@@ -13,6 +13,7 @@ export const companiesRouter = Router();
  *   get:
  *     summary: Get all companies (public directory)
  *     tags: [Companies]
+ *     security: []
  *     parameters:
  *       - in: query
  *         name: q
@@ -44,6 +45,7 @@ companiesRouter.get("/", getCompanies);
  *   get:
  *     summary: Get a single company's public profile
  *     tags: [Companies]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: companyId
@@ -72,6 +74,7 @@ companiesRouter.get("/:companyId", getCompany);
  *     summary: Get open job listings for a company
  *     description: Returns only open listings (isClosed = false).
  *     tags: [Companies]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: companyId

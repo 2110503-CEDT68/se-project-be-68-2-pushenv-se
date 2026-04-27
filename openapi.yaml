@@ -1,0 +1,3425 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Job Fair API",
+    "version": "1.0.0",
+    "description": "Backend API for the Job Fair platform. Roles: jobSeeker, companyUser, systemAdmin."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api/v1",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication — all roles"
+    },
+    {
+      "name": "System",
+      "description": "Operational and documentation endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "Job seeker profile and registrations"
+    },
+    {
+      "name": "Events",
+      "description": "Public event discovery and registration"
+    },
+    {
+      "name": "Companies",
+      "description": "Public company directory"
+    },
+    {
+      "name": "Company",
+      "description": "Company user — manage profile and jobs"
+    },
+    {
+      "name": "Jobs",
+      "description": "Public job listings"
+    },
+    {
+      "name": "Admin - Accounts",
+      "description": "System admin — user account management"
+    },
+    {
+      "name": "Admin - Companies",
+      "description": "System admin — company profile management"
+    },
+    {
+      "name": "Admin - Events",
+      "description": "System admin — event management"
+    },
+    {
+      "name": "Admin - Jobs",
+      "description": "System admin — job listing management"
+    }
+  ],
+  "paths": {
+    "/csrf-token": {
+      "get": {
+        "summary": "Generate a CSRF token for subsequent write requests",
+        "tags": [
+          "System"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "CSRF token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "csrfToken": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "Get the runtime-generated OpenAPI document",
+        "tags": [
+          "System"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI document"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": [
+          "System"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/accounts": {
+      "get": {
+        "summary": "Get all user accounts (paginated, filterable)",
+        "tags": [
+          "Admin - Accounts"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by name (case-insensitive partial match)"
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "jobSeeker",
+                "companyUser",
+                "systemAdmin"
+              ]
+            },
+            "description": "Filter by role"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of user accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "All accounts",
+                  "data": {
+                    "data": [
+                      {
+                        "id": "user-uuid",
+                        "name": "John Doe",
+                        "email": "john@example.com",
+                        "role": "jobSeeker",
+                        "phone": null,
+                        "avatar": null,
+                        "createdAt": "2024-01-01T00:00:00Z"
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "limit": 10,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new account (companyUser or jobSeeker)",
+        "description": "Creating a companyUser account automatically creates a CompanyProfile record linked to that user.\n",
+        "tags": [
+          "Admin - Accounts"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password",
+                  "role"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Tech Corp"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "hr@techcorp.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "pass1234"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "jobSeeker",
+                      "companyUser"
+                    ],
+                    "example": "companyUser"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created — returns User.id (not CompanyProfile.id)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Account created",
+                  "data": {
+                    "id": "user-uuid",
+                    "name": "Tech Corp",
+                    "email": "hr@techcorp.com",
+                    "role": "companyUser"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or invalid role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Email already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/accounts/{id}": {
+      "get": {
+        "summary": "Get one account with related profile data",
+        "tags": [
+          "Admin - Accounts"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update any account — optionally reset password",
+        "description": "All fields are optional. Provide password to reset it.",
+        "tags": [
+          "Admin - Accounts"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "If provided, the account password is reset to this value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email already in use by another account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete any account",
+        "description": "Admin cannot delete their own account.",
+        "tags": [
+          "Admin - Accounts"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Account deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot delete your own account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/companies": {
+      "get": {
+        "summary": "Get all company profiles (paginated, filterable)",
+        "tags": [
+          "Admin - Companies"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by company name (case-insensitive)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of company profiles with job count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "All companies",
+                  "data": {
+                    "data": [
+                      {
+                        "id": "profile-uuid",
+                        "description": "We build great software",
+                        "logo": null,
+                        "website": "https://techcorp.com",
+                        "companyUser": {
+                          "id": "user-uuid",
+                          "name": "Tech Corp",
+                          "email": "hr@techcorp.com"
+                        },
+                        "_count": {
+                          "jobs": 3
+                        }
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "limit": 10,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/companies/{id}": {
+      "get": {
+        "summary": "Get one company profile with event links",
+        "tags": [
+          "Admin - Companies"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "CompanyProfile ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Company details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update any company profile",
+        "description": "id refers to CompanyProfile.id (not User.id).",
+        "tags": [
+          "Admin - Companies"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "CompanyProfile ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "website": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Company profile updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events": {
+      "get": {
+        "summary": "Get all events including unpublished drafts (paginated)",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by event name (case-insensitive)"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter by exact startDate (e.g. 2025-11-01)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated events with registration and company counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "All events",
+                  "data": {
+                    "data": [
+                      {
+                        "id": "event-uuid",
+                        "name": "Job Fair 2025",
+                        "isPublished": false,
+                        "_count": {
+                          "registrations": 42,
+                          "companies": 10
+                        }
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "limit": 10,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new event (draft by default)",
+        "description": "New events are always created with isPublished = false. Use PATCH /publish to publish.",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description",
+                  "location",
+                  "startDate",
+                  "endDate"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Job Fair 2025"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Annual tech job fair in Bangkok"
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "BITEC Bangkok"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2025-11-01"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2025-11-02"
+                  },
+                  "banner": {
+                    "type": "string",
+                    "description": "Banner image URL (optional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Event created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/events/{id}": {
+      "get": {
+        "summary": "Get one event including linked companies and registrations",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update event details",
+        "description": "All fields are optional — only provided fields are updated.",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "banner": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an event",
+        "description": "Cascades — deletes all EventRegistrations and EventCompany links.",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Event deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/publish": {
+      "patch": {
+        "summary": "Toggle event publish state",
+        "description": "No request body needed. If the event is published it becomes unpublished, and vice versa.\n",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event publish state toggled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Event published",
+                  "data": {
+                    "id": "event-uuid",
+                    "isPublished": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/companies": {
+      "post": {
+        "summary": "Link a company to an event",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "companyId"
+                ],
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "CompanyProfile ID (not User ID)",
+                    "example": "11111111-1111-4111-8111-111111111111"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Company linked to event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "companyId is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Event or company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Company is already linked to this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/companies/{companyId}": {
+      "delete": {
+        "summary": "Unlink a company from an event",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          },
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "CompanyProfile ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Company unlinked from event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Company removed from event",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company is not linked to this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/registrations": {
+      "get": {
+        "summary": "Get all users registered for an event",
+        "tags": [
+          "Admin - Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EventId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of job seekers registered for the event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Event registered users",
+                  "data": [
+                    {
+                      "id": "reg-uuid",
+                      "eventId": "event-uuid",
+                      "jobSeekerId": "user-uuid",
+                      "registeredAt": "2024-11-01T08:00:00Z",
+                      "user": {
+                        "id": "user-uuid",
+                        "name": "John Doe",
+                        "email": "john@example.com"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/companies/{companyId}/jobs": {
+      "get": {
+        "summary": "Get all jobs for a company including closed (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All jobs (open and closed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a job listing under any company (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job listing created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}": {
+      "get": {
+        "summary": "Get any job detail including closed (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full job detail including company info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update any job listing (admin)",
+        "description": "Only provided fields are updated.",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete any job listing (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Job deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}/close": {
+      "patch": {
+        "summary": "Close any job listing (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job closed — isClosed set to true",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/jobs/{id}/open": {
+      "patch": {
+        "summary": "Re-open any job listing (admin)",
+        "tags": [
+          "Admin - Jobs"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job opened — isClosed set to false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new job seeker account",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password",
+                  "role"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "pass1234"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "jobSeeker"
+                    ],
+                    "example": "jobSeeker"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered successfully — sets auth cookie and returns session user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or invalid role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login with email and password (all roles)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "pass1234"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful — sets auth cookie and returns session user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get my profile (all roles)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update my profile — name, phone, avatar (all roles)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Updated"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "0812345678"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (max 5 MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Name or phone cannot be empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "summary": "Change my password (all roles)",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "example": "oldpass123"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "newpass456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing fields or new password too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized or current password incorrect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Logout — clears auth cookie (all roles)",
+        "description": "Clears the server-side cookie. The client must also delete its stored JWT token from localStorage or memory to fully log out.\n",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/companies": {
+      "get": {
+        "summary": "Get all companies (public directory)",
+        "tags": [
+          "Companies"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by company name (case-insensitive)"
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest",
+                "a-z",
+                "z-a"
+              ]
+            },
+            "description": "Sort order (default newest)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated company list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/companies/{companyId}": {
+      "get": {
+        "summary": "Get a single company's public profile",
+        "tags": [
+          "Companies"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Company profile with event history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/companies/{companyId}/jobs": {
+      "get": {
+        "summary": "Get open job listings for a company",
+        "description": "Returns only open listings (isClosed = false).",
+        "tags": [
+          "Companies"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open job listings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Company not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/company/profile": {
+      "get": {
+        "summary": "Get my company profile",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "My company profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Company profile",
+                  "data": {
+                    "id": "profile-uuid",
+                    "companyUserId": "user-uuid",
+                    "description": "We build great software",
+                    "logo": "/uploads/logos/uuid.png",
+                    "website": "https://techcorp.com"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company profile not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update my company profile",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "example": "We build amazing software products"
+                  },
+                  "logo": {
+                    "type": "string",
+                    "description": "URL of the company logo",
+                    "example": "https://cdn.example.com/logo.png"
+                  },
+                  "website": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://techcorp.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/company/events": {
+      "get": {
+        "summary": "Get events my company is participating in",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events linked to my company",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Company events",
+                  "data": [
+                    {
+                      "id": "event-uuid",
+                      "name": "Job Fair 2025",
+                      "location": "Bangkok",
+                      "startDate": "2025-11-01",
+                      "endDate": "2025-11-02",
+                      "isPublished": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company profile not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/company/jobs": {
+      "post": {
+        "summary": "Create a new job listing",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job listing created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Job created",
+                  "data": {
+                    "id": "job-uuid",
+                    "title": "Frontend Developer",
+                    "type": "full_time",
+                    "location": "Bangkok",
+                    "isClosed": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Company profile not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/company/jobs/{id}": {
+      "put": {
+        "summary": "Update a job listing (ownership enforced)",
+        "description": "Only provided fields are updated.",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "full_time",
+                      "part_time",
+                      "internship",
+                      "contract"
+                    ]
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "requirements": {
+                    "type": "string"
+                  },
+                  "qualifications": {
+                    "type": "string"
+                  },
+                  "salary": {
+                    "type": "string"
+                  },
+                  "attachment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Job not found or not owned by this company",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a job listing (ownership enforced)",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Job deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/company/jobs/{id}/close": {
+      "patch": {
+        "summary": "Close a job listing (hidden from public)",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job closed — isClosed set to true",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/company/jobs/{id}/open": {
+      "patch": {
+        "summary": "Re-open a closed job listing",
+        "tags": [
+          "Company"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job opened — isClosed set to false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "Get all published events (paginated)",
+        "tags": [
+          "Events"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            },
+            "description": "Results per page"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search across name, description, and location"
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "oldest",
+                "a-z",
+                "z-a"
+              ]
+            },
+            "description": "Sort order. Default is newest by start date."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated published events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Published events",
+                  "data": {
+                    "events": [
+                      {
+                        "id": "event-uuid",
+                        "name": "Job Fair 2025",
+                        "description": "Annual job fair",
+                        "location": "Bangkok",
+                        "startDate": "2025-11-01",
+                        "endDate": "2025-11-02",
+                        "banner": "/uploads/event-banners/uuid.jpg",
+                        "isPublished": true
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "limit": 20
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "summary": "Get a single published event by ID",
+        "tags": [
+          "Events"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Event ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Event",
+                  "data": {
+                    "id": "event-uuid",
+                    "name": "Job Fair 2025",
+                    "location": "Bangkok",
+                    "startDate": "2025-11-01",
+                    "endDate": "2025-11-02",
+                    "isPublished": true
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found or not published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/companies": {
+      "get": {
+        "summary": "Get companies participating in an event",
+        "tags": [
+          "Events"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Event ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of companies in the event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Event companies",
+                  "data": [
+                    {
+                      "company": {
+                        "id": "profile-uuid",
+                        "description": "We build great software",
+                        "logo": "/uploads/logos/uuid.png",
+                        "website": "https://example.com",
+                        "companyUser": {
+                          "name": "Tech Corp",
+                          "email": "hr@techcorp.com"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/registration-status": {
+      "get": {
+        "summary": "Get my registration status for an event",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Event ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registration status for the authenticated job seeker",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Event not found or not published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/register": {
+      "post": {
+        "summary": "Register for an event",
+        "description": "Only jobSeeker accounts can register. Returns 409 if already registered.",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Event ID"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Registered for event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Registered for event",
+                  "data": {
+                    "id": "reg-uuid",
+                    "eventId": "event-uuid",
+                    "jobSeekerId": "user-uuid",
+                    "registeredAt": "2024-11-01T08:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden for non-jobSeeker accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already registered for this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Get job detail by ID",
+        "description": "Public endpoint. Closed jobs return 404 for unauthenticated users, jobSeekers, and companyUsers. systemAdmin tokens see closed jobs too.\n",
+        "tags": [
+          "Jobs"
+        ],
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job detail including company info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found or is closed (for non-admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "summary": "Get my job seeker profile",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job seeker profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "User profile",
+                  "data": {
+                    "id": "uuid-here",
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "phone": "0812345678",
+                    "avatar": "/uploads/avatars/uuid.jpg"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update my job seeker profile",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Updated"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "0899999999"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (max 5 MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Name or phone cannot be empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete my account permanently",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "User deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/users/registrations": {
+      "get": {
+        "summary": "Get my event registrations (paginated)",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            },
+            "description": "Results per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of my event registrations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "User registrations",
+                  "data": {
+                    "data": [
+                      {
+                        "id": "reg-uuid",
+                        "eventId": "event-uuid",
+                        "jobSeekerId": "user-uuid",
+                        "registeredAt": "2024-11-01T08:00:00Z",
+                        "event": {
+                          "id": "event-uuid",
+                          "name": "Job Fair 2025",
+                          "location": "Bangkok",
+                          "startDate": "2025-11-01",
+                          "endDate": "2025-11-02"
+                        }
+                      }
+                    ],
+                    "total": 1,
+                    "page": 1,
+                    "limit": 10,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/users/me/registrations/{eventId}": {
+      "delete": {
+        "summary": "Cancel my registration for an event",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "ID of the event to unregister from"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registration cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Registration deleted",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Registration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "job-fair-token",
+        "description": "Session JWT stored in the `job-fair-token` cookie."
+      },
+      "csrfToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-csrf-token",
+        "description": "Required for non-GET/HEAD/OPTIONS requests after calling `/api/v1/csrf-token`."
+      }
+    },
+    "parameters": {
+      "JobId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "JobListing ID"
+      },
+      "EventId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Event ID"
+      }
+    },
+    "schemas": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Operation successful"
+          },
+          "data": {
+            "description": "Varies by endpoint"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Error description"
+          }
+        }
+      },
+      "AuthSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Login successful"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "jobSeeker",
+                      "companyUser",
+                      "systemAdmin"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "JobInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "type",
+          "location",
+          "description"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Frontend Developer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "full_time",
+              "part_time",
+              "internship",
+              "contract"
+            ],
+            "example": "full_time"
+          },
+          "location": {
+            "type": "string",
+            "example": "Bangkok"
+          },
+          "description": {
+            "type": "string",
+            "example": "Build amazing UIs for our platform"
+          },
+          "requirements": {
+            "type": "string",
+            "example": "3+ years of React experience"
+          },
+          "qualifications": {
+            "type": "string",
+            "example": "Bachelor degree in Computer Science"
+          },
+          "salary": {
+            "type": "string",
+            "example": "50,000 THB"
+          },
+          "attachment": {
+            "type": "string",
+            "description": "URL to job description PDF"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid session cookie",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "success": false,
+              "message": "Unauthorized"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but wrong role for this endpoint",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "success": false,
+              "message": "Forbidden"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "success": false,
+              "message": "Not found"
+            }
+          }
+        }
+      }
+    }
+  }
+}

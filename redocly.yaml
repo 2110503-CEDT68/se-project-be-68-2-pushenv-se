@@ -1,0 +1,9 @@
+# Redocly configuration for Job Fair API
+# https://redocly.com/docs/cli/configuration/
+
+extends:
+  - recommended
+
+apis:
+  main@v1:
+    root: ./openapi.yaml

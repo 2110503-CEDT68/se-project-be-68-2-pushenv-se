@@ -93,6 +93,10 @@ export const createJob = async (req: AuthenticatedRequest, res: Response) => {
     const { title, type, location, description,
       requirements, qualifications, salary, attachment } = req.body;
 
+    if (!title || !type || !location || !description) {
+      return sendError(res, "Missing required fields", 400);
+    }
+
     const profile = await getCompanyProfile(req.user!.id);
     if (!profile) return sendError(res, "Profile not found", 404);
 

@@ -16,6 +16,7 @@ export const eventsRouter = Router();
  *   get:
  *     summary: Get all published events (paginated)
  *     tags: [Events]
+ *     security: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -30,6 +31,17 @@ export const eventsRouter = Router();
  *           default: 20
  *           maximum: 100
  *         description: Results per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search across name, description, and location
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [oldest, a-z, z-a]
+ *         description: Sort order. Default is newest by start date.
  *     responses:
  *       200:
  *         description: Paginated published events
@@ -62,6 +74,7 @@ eventsRouter.get("/", getPublishedEvents);
  *   get:
  *     summary: Get a single published event by ID
  *     tags: [Events]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -102,6 +115,7 @@ eventsRouter.get("/:id", getEventById);
  *   get:
  *     summary: Get companies participating in an event
  *     tags: [Events]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -137,6 +151,41 @@ eventsRouter.get("/:id", getEventById);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 eventsRouter.get("/:id/companies", getEventCompanies);
+
+/**
+ * @openapi
+ * /events/{id}/registration-status:
+ *   get:
+ *     summary: Get my registration status for an event
+ *     tags: [Events]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: Registration status for the authenticated job seeker
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Event not found or not published
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 eventsRouter.get(
   "/:id/registration-status",
   requireAuth,
@@ -152,7 +201,8 @@ eventsRouter.get(
  *     description: Only jobSeeker accounts can register. Returns 409 if already registered.
  *     tags: [Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -179,7 +229,7 @@ eventsRouter.get(
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
- *         description: Forbidden (wrong role) or event not published
+ *         description: Forbidden for non-jobSeeker accounts
  *         content:
  *           application/json:
  *             schema:

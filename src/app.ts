@@ -50,8 +50,45 @@ export function createApp() {
     getSessionIdentifier: (req) => req.cookies?.["job-fair-token"] || "anonymous",
   });
 
+  /**
+   * @openapi
+ * /csrf-token:
+ *   get:
+ *     summary: Generate a CSRF token for subsequent write requests
+ *     tags: [System]
+ *     security: []
+ *     responses:
+   *       200:
+   *         description: CSRF token issued
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 csrfToken:
+   *                   type: string
+   */
   app.get("/api/v1/csrf-token", (req, res) => {
     res.json({ csrfToken: generateCsrfToken(req, res) });
+  });
+
+  /**
+   * @openapi
+ * /openapi.json:
+ *   get:
+ *     summary: Get the runtime-generated OpenAPI document
+ *     tags: [System]
+ *     security: []
+ *     responses:
+   *       200:
+   *         description: OpenAPI document
+   */
+  app.get("/api/v1/openapi.json", (_request, response) => {
+    response.json(swaggerSpec);
+  });
+
+  app.get("/swagger", (_request, response) => {
+    response.redirect("/api/v1/docs");
   });
 
   app.use(doubleCsrfProtection);

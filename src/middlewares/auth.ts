@@ -29,6 +29,25 @@ export function requireAuth(
   }
 }
 
+export function attachOptionalAuth(
+  request: AuthenticatedRequest,
+  _response: Response,
+  next: NextFunction,
+) {
+  const token = request.cookies?.["job-fair-token"];
+  if (!token) {
+    return next();
+  }
+
+  try {
+    request.user = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+  } catch {
+    // Ignore invalid cookies on public routes and proceed as anonymous.
+  }
+
+  return next();
+}
+
 export function requireRole(roles: Array<JwtPayload["role"]>) {
   return (request: AuthenticatedRequest, response: Response, next: NextFunction) => {
     if (!request.user) {
