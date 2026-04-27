@@ -23,8 +23,8 @@ RUN corepack enable pnpm
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
-RUN pnpm run prisma:generate
+# Generate Prisma Client (dummy URL during build. Will be updated at runtime.)
+RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/db" pnpm run prisma:generate
 
 # Build the app
 RUN pnpm run build

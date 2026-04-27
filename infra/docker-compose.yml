@@ -6,7 +6,7 @@ services:
     container_name: job_fair_db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-job_fair}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -17,17 +17,17 @@ services:
       - job_fair_network
 
   backend:
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    image: tgodth/job-fair-backend:latest
     container_name: job_fair_backend
+    profiles:
+      - production
     environment:
       - PORT=${PORT:-4000}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_fair}}
-      - JWT_SECRET=${JWT_SECRET:-production-super-secret-key-change-me}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_fair}
+      - JWT_SECRET=${JWT_SECRET:-change-me}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@jobfair.com}
-      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-password123}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-admin123}
     ports:
       - "${PORT:-4000}:4000"
     depends_on:
@@ -40,15 +40,14 @@ services:
     command: sh -c "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts --admin && node dist/server.js"
 
   frontend:
-    build:
-      context: ../../se-project-fe-68-2-pushenv-se
-      dockerfile: Dockerfile
-      args:
-        # Build-time argument for Next.js to bake the API URL into the frontend build
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    image: tgodth/job-fair-frontend:latest
     container_name: job_fair_frontend
+    profiles:
+      - production
     environment:
       - PORT=${FRONTEND_PORT:-3000}
+      - IS_DOCKER=true
+      - BACKEND_URL=${BACKEND_URL:-http://backend:4000}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
