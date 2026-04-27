@@ -16,6 +16,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "compose:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
     "compose:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
+    "compose:prod": "docker compose --profile production --env-file .env -f infra/docker-compose.yml up -d",
+    "compose:prod:down": "docker compose --profile production --env-file .env -f infra/docker-compose.yml down",
     "compose:nuke": "docker compose --env-file .env -f infra/docker-compose.yml down -v",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -23,7 +25,8 @@
     "docs:lint": "pnpm run docs:sync && redocly lint ./openapi.yaml",
     "docs:bundle": "pnpm run docs:sync && redocly bundle openapi.yaml -o dist/openapi-bundled.yaml",
     "docs:build": "pnpm run docs:sync && redocly build-docs openapi.yaml -o docs/api.html",
-    "docs:serve": "pnpm run docs:sync && redocly preview-docs openapi.yaml"
+    "docs:serve": "pnpm run docs:sync && redocly preview-docs openapi.yaml",
+    "docker:build": "docker build -t job-fair-backend:latest ."
   },
   "keywords": [],
   "author": "",
