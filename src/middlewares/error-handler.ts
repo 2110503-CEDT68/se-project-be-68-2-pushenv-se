@@ -8,6 +8,10 @@ export function errorHandler(
   response: Response,
   _next: NextFunction,
 ) {
+  if (error && typeof error === "object" && "code" in error && error.code === "EBADCSRFTOKEN") {
+    return sendError(response, "Invalid CSRF token", 403);
+  }
+
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       return sendError(response, "File size must be 5 MB or smaller", 400);
