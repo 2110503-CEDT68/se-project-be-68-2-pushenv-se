@@ -22,7 +22,7 @@ companyRouter.use(requireAuth, requireRole(["companyUser"]));
  *     summary: Get my company profile
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: My company profile
@@ -59,7 +59,8 @@ companyRouter.get("/profile", getProfile);
  *     summary: Update my company profile
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       content:
  *         application/json:
@@ -98,7 +99,7 @@ companyRouter.put("/profile", updateProfile);
  *     summary: Get events my company is participating in
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Events linked to my company
@@ -136,7 +137,8 @@ companyRouter.get("/events", getCompanyEvents);
  *     summary: Create a new job listing
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -177,16 +179,36 @@ companyRouter.post("/jobs", createJob);
  * /company/jobs/{id}:
  *   put:
  *     summary: Update a job listing (ownership enforced)
+ *     description: Only provided fields are updated.
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     requestBody:
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/JobInput'
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [full_time, part_time, internship, contract]
+ *               location:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               requirements:
+ *                 type: string
+ *               qualifications:
+ *                 type: string
+ *               salary:
+ *                 type: string
+ *               attachment:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Job updated
@@ -214,7 +236,8 @@ companyRouter.put("/jobs/:id", updateJob);
  *     summary: Close a job listing (hidden from public)
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -240,7 +263,8 @@ companyRouter.patch("/jobs/:id/close", closeJob);
  *     summary: Re-open a closed job listing
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -266,7 +290,8 @@ companyRouter.patch("/jobs/:id/open", openJob);
  *     summary: Delete a job listing (ownership enforced)
  *     tags: [Company]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:

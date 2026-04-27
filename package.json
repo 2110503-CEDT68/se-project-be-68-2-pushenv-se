@@ -19,10 +19,11 @@
     "compose:nuke": "docker compose --env-file .env -f infra/docker-compose.yml down -v",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "docs:lint": "redocly lint ./openapi.yaml",
-    "docs:bundle": "redocly bundle openapi.yaml -o dist/openapi-bundled.yaml",
-    "docs:build": "redocly build-docs openapi.yaml -o docs/api.html",
-    "docs:serve": "redocly preview-docs openapi.yaml"
+    "docs:sync": "tsx scripts/sync-openapi.ts",
+    "docs:lint": "pnpm run docs:sync && redocly lint ./openapi.yaml",
+    "docs:bundle": "pnpm run docs:sync && redocly bundle openapi.yaml -o dist/openapi-bundled.yaml",
+    "docs:build": "pnpm run docs:sync && redocly build-docs openapi.yaml -o docs/api.html",
+    "docs:serve": "pnpm run docs:sync && redocly preview-docs openapi.yaml"
   },
   "keywords": [],
   "author": "",

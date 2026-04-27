@@ -43,6 +43,21 @@ describe("createApp", () => {
     expect([200, 301]).toContain(response.status);
   });
 
+  it("serves the generated OpenAPI spec as JSON", async () => {
+    const response = await request(app).get("/api/v1/openapi.json");
+
+    expect(response.status).toBe(200);
+    expect(response.body.openapi).toBe("3.0.0");
+    expect(response.body.info?.title).toBe("Job Fair API");
+  });
+
+  it("redirects /swagger to the Swagger UI", async () => {
+    const response = await request(app).get("/swagger");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("/api/v1/docs");
+  });
+
   it("serves uploaded assets with cross-origin resource policy", async () => {
     const response = await request(app).get("/uploads/avatars/app-test-avatar.png");
 

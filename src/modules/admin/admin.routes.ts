@@ -25,7 +25,7 @@ adminRouter.use(requireAuth, requireRole(["systemAdmin"]));
  *     summary: Get all user accounts (paginated, filterable)
  *     tags: [Admin - Accounts]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
  *         name: name
@@ -78,6 +78,41 @@ adminRouter.use(requireAuth, requireRole(["systemAdmin"]));
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/accounts", getAccounts);
+
+/**
+ * @openapi
+ * /admin/accounts/{id}:
+ *   get:
+ *     summary: Get one account with related profile data
+ *     tags: [Admin - Accounts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Account details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Account not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.get("/accounts/:id", getAccountById);
 
 /**
@@ -90,7 +125,8 @@ adminRouter.get("/accounts/:id", getAccountById);
  *       record linked to that user.
  *     tags: [Admin - Accounts]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -155,7 +191,8 @@ adminRouter.post("/accounts", createAccount);
  *     description: All fields are optional. Provide password to reset it.
  *     tags: [Admin - Accounts]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -214,7 +251,8 @@ adminRouter.put("/accounts/:id", updateAccount);
  *     description: Admin cannot delete their own account.
  *     tags: [Admin - Accounts]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -258,7 +296,7 @@ adminRouter.delete("/accounts/:id", deleteAccount);
  *     summary: Get all company profiles (paginated, filterable)
  *     tags: [Admin - Companies]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
  *         name: name
@@ -308,6 +346,41 @@ adminRouter.delete("/accounts/:id", deleteAccount);
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/companies", getCompanies);
+
+/**
+ * @openapi
+ * /admin/companies/{id}:
+ *   get:
+ *     summary: Get one company profile with event links
+ *     tags: [Admin - Companies]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CompanyProfile ID
+ *     responses:
+ *       200:
+ *         description: Company details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Company not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.get("/companies/:id", getCompanyById);
 
 /**
@@ -318,7 +391,8 @@ adminRouter.get("/companies/:id", getCompanyById);
  *     description: id refers to CompanyProfile.id (not User.id).
  *     tags: [Admin - Companies]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -367,7 +441,7 @@ adminRouter.put("/companies/:id", updateCompany);
  *     summary: Get all events including unpublished drafts (paginated)
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
  *         name: name
@@ -419,6 +493,31 @@ adminRouter.put("/companies/:id", updateCompany);
  *         $ref: '#/components/responses/Forbidden'
  */
 adminRouter.get("/events", getEvents);
+
+/**
+ * @openapi
+ * /admin/events/{id}:
+ *   get:
+ *     summary: Get one event including linked companies and registrations
+ *     tags: [Admin - Events]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/EventId'
+ *     responses:
+ *       200:
+ *         description: Event details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 adminRouter.get("/events/:id", getEventById);
 
 /**
@@ -429,7 +528,8 @@ adminRouter.get("/events/:id", getEventById);
  *     description: New events are always created with isPublished = false. Use PATCH /publish to publish.
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -486,7 +586,8 @@ adminRouter.post("/events", createEvent);
  *     description: All fields are optional — only provided fields are updated.
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *     requestBody:
@@ -533,7 +634,8 @@ adminRouter.put("/events/:id", updateEvent);
  *     description: Cascades — deletes all EventRegistrations and EventCompany links.
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *     responses:
@@ -566,7 +668,8 @@ adminRouter.delete("/events/:id", deleteEvent);
  *       and vice versa.
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *     responses:
@@ -598,7 +701,8 @@ adminRouter.patch("/events/:id/publish", publishEvent);
  *     summary: Link a company to an event
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *     requestBody:
@@ -613,7 +717,7 @@ adminRouter.patch("/events/:id/publish", publishEvent);
  *                 type: string
  *                 format: uuid
  *                 description: CompanyProfile ID (not User ID)
- *                 example: "profile-uuid"
+ *                 example: "11111111-1111-4111-8111-111111111111"
  *     responses:
  *       201:
  *         description: Company linked to event
@@ -653,7 +757,7 @@ adminRouter.post("/events/:id/companies", addCompanyToEvent);
  *     summary: Unlink a company from an event
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *       - in: path
@@ -694,7 +798,7 @@ adminRouter.delete("/events/:id/companies/:companyId", removeCompanyFromEvent);
  *     summary: Get all users registered for an event
  *     tags: [Admin - Events]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - $ref: '#/components/parameters/EventId'
  *     responses:
@@ -735,7 +839,8 @@ adminRouter.get("/events/:id/registrations", getEventRegisteredUsers);
  *     summary: Get all jobs for a company including closed (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: companyId
@@ -768,7 +873,8 @@ adminRouter.get("/companies/:companyId/jobs", adminGetCompanyJobs);
  *     summary: Get any job detail including closed (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -794,7 +900,8 @@ adminRouter.get("/jobs/:id", adminGetJob);
  *     summary: Create a job listing under any company (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: companyId
@@ -840,7 +947,8 @@ adminRouter.post("/companies/:companyId/jobs", adminCreateJob);
  *     description: Only provided fields are updated.
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     requestBody:
@@ -871,7 +979,8 @@ adminRouter.put("/jobs/:id", adminUpdateJob);
  *     summary: Close any job listing (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -897,7 +1006,8 @@ adminRouter.patch("/jobs/:id/close", adminCloseJob);
  *     summary: Re-open any job listing (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -923,7 +1033,8 @@ adminRouter.patch("/jobs/:id/open", adminOpenJob);
  *     summary: Delete any job listing (admin)
  *     tags: [Admin - Jobs]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:

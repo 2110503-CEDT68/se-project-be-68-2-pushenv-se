@@ -10,6 +10,21 @@ import { sendSuccess } from "../utils/http.js";
 
 export const apiRouter = Router();
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ */
 apiRouter.get("/health", (_request, response) =>
   sendSuccess(response, "OK", { service: "job-fair-backend" }),
 );

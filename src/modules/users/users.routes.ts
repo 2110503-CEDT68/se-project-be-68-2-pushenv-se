@@ -14,7 +14,7 @@ usersRouter.use(requireAuth, requireRole(["jobSeeker"]));
  *     summary: Get my job seeker profile
  *     tags: [Users]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Job seeker profile
@@ -47,7 +47,8 @@ usersRouter.get("/me", getMe);
  *     summary: Update my job seeker profile
  *     tags: [Users]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     requestBody:
  *       content:
  *         multipart/form-data:
@@ -91,7 +92,8 @@ usersRouter.put("/me", upload.single("avatar"), updateMe);
  *     summary: Delete my account permanently
  *     tags: [Users]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     responses:
  *       200:
  *         description: Account deleted
@@ -119,7 +121,7 @@ usersRouter.delete("/me", deleteMe);
  *     summary: Get my event registrations (paginated)
  *     tags: [Users]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -174,7 +176,8 @@ usersRouter.get("/registrations", getRegistrations);
  *     summary: Cancel my registration for an event
  *     tags: [Users]
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
+ *         csrfToken: []
  *     parameters:
  *       - in: path
  *         name: eventId

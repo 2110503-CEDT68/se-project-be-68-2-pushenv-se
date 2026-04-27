@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getJob } from "../../controllers/jobs.controller.js";
+import { attachOptionalAuth } from "../../middlewares/auth.js";
 
 export const jobsRouter = Router();
 
@@ -12,6 +13,9 @@ export const jobsRouter = Router();
  *       Public endpoint. Closed jobs return 404 for unauthenticated users,
  *       jobSeekers, and companyUsers. systemAdmin tokens see closed jobs too.
  *     tags: [Jobs]
+ *     security:
+ *       - {}
+ *       - cookieAuth: []
  *     parameters:
  *       - $ref: '#/components/parameters/JobId'
  *     responses:
@@ -28,4 +32,4 @@ export const jobsRouter = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-jobsRouter.get("/jobs/:id", getJob);
+jobsRouter.get("/jobs/:id", attachOptionalAuth, getJob);
