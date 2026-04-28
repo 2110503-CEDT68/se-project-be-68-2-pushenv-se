@@ -5,14 +5,60 @@ services:
     image: postgres:18-alpine
     container_name: job_fair_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: job_fair
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-job_fair}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
+    networks:
+      - job_fair_network
+
+  backend:
+    image: tgodth/job-fair-backend:latest
+    container_name: job_fair_backend
+    profiles:
+      - production
+    environment:
+      - PORT=${PORT:-4000}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_fair}
+      - JWT_SECRET=${JWT_SECRET:-change-me}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@jobfair.com}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "${PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - job_fair_network
+    # Run prisma db push and seed admin before starting the server
+    command: sh -c "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts --admin && node dist/server.js"
+
+  frontend:
+    image: tgodth/job-fair-frontend:latest
+    container_name: job_fair_frontend
+    profiles:
+      - production
+    environment:
+      - PORT=${FRONTEND_PORT:-3000}
+      - IS_DOCKER=true
+      - BACKEND_URL=${BACKEND_URL:-http://backend:4000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - job_fair_network
 
 volumes:
   postgres_data:
+
+networks:
+  job_fair_network:
+    driver: bridge
