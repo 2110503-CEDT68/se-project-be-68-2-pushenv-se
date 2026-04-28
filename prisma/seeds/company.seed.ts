@@ -6,7 +6,7 @@ export async function seedCompanies(prisma: PrismaClient) {
   console.log('Seeding Companies & Jobs...');
   const password = process.env.SEED_COMPANY_PASSWORD || 'password123';
   const passwordHash = await bcrypt.hash(password, 10);
-  const createdUsers = [];
+  const createdUsers: Awaited<ReturnType<typeof prisma.user.upsert>>[] = [];
   
   for (let i = 1; i <= 5; i++) {
     const random3 = randomInt(100, 1000);
@@ -41,5 +41,44 @@ export async function seedCompanies(prisma: PrismaClient) {
     }
     createdUsers.push(user);
   }
+
+  // Fixed company users for E2E tests
+  const testCompanies = [
+    {
+      name: 'Test Company',
+      email: 'test@company.com',
+      website: 'https://test-company.example.com',
+      description: 'E2E test company profile.',
+    },
+    {
+      name: 'Delete Company',
+      email: 'delete-me@company.com',
+      website: 'https://delete-company.example.com',
+      description: 'Company used for delete flow tests.',
+    },
+  ];
+
+  for (const tc of testCompanies) {
+    const user = await prisma.user.upsert({
+      where: { email: tc.email },
+      update: {},
+      create: {
+        name: tc.name,
+        email: tc.email,
+        passwordHash,
+        role: Role.companyUser,
+        companyProfile: {
+          create: {
+            description: tc.description,
+            website: tc.website,
+          },
+        },
+      },
+      include: { companyProfile: true },
+    });
+
+    createdUsers.push(user);
+  }
+
   return createdUsers;
 }

@@ -15,6 +15,7 @@ export async function seedEvents(prisma: PrismaClient, adminId: string, companyP
   console.log('Seeding Events & Registrations...');
   
   const createdEvents = [];
+  const banners = ["https://thumbs.dreamstime.com/b/bright-shooting-star-dark-blue-night-sky-banner-abstract-image-glowing-shooting-star-flying-comet-dark-blue-night-161255553.jpg",""]
   for (let i = 1; i <= 3; i++) {
     const random3 = randomInt(100, 1000);
     const eventName = `Event ${random3}`;
@@ -25,6 +26,7 @@ export async function seedEvents(prisma: PrismaClient, adminId: string, companyP
         description: `Description for ${eventName}.`,
         location: `Location Room ${i}`,
         startDate: new Date('2026-10-10'),
+        banner: banners[i-1],
         endDate: new Date('2026-10-12'),
         isPublished: i < 3, // Last one is draft
         createdBy: adminId,
