@@ -26,7 +26,9 @@
     "docs:bundle": "pnpm run docs:sync && redocly bundle openapi.yaml -o dist/openapi-bundled.yaml",
     "docs:build": "pnpm run docs:sync && redocly build-docs openapi.yaml -o docs/api.html",
     "docs:serve": "pnpm run docs:sync && redocly preview-docs openapi.yaml",
-    "docker:build": "docker build -t job-fair-backend:latest ."
+    "docker:build": "docker build -t job-fair-backend:latest .",
+
+    "demo:setup": "pnpm compose:nuke && pnpm compose:up && pnpm prisma:generate && pnpm db:push && pnpm db:seed && pnpm dev "
   },
   "keywords": [],
   "author": "",
